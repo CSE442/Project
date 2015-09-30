@@ -25,7 +25,7 @@ print("Accepted connection from ", client_info)
 
 
 try:
-    while true:
+    while True:
         data = client_sock.recv(1024)
         if len(data) == 0: break
         print("received [%s]" %data)
