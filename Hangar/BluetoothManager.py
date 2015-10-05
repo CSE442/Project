@@ -32,6 +32,14 @@ class BluetoothManager(object):
         '''
         subprocess.call(['hciconfig', 'hci0', 'up', 'piscan'])
 
+        self.server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+        self.server_sock.bind(("", bluetooth.PORT_ANY))
+        self.server_sock.listen(1)
+        port = self.server_sock.getsockname()[1]
+
+        bluetooth.advertise_service(self.server_sock, self.name, self.uuid)
+
+
     def bluetooth_stop(self):
         '''
         Stops the bluetooth device. Will throw an exception
@@ -40,23 +48,15 @@ class BluetoothManager(object):
         '''
         if self.is_connected:
             raise ValueError('Attempted to stop bluetooth, but connections exist')
+        self.server_sock.close()
         subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
-
-
-        pass
 
     def add_device(self):
         '''
         Will accept a connection from a device, and return
         the device's bluetooth uuid
         '''
-        server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        server_sock.bind(("", bluetooth.PORT_ANY))
-        server_sock.listen(1)
-        port = server_sock.getsockname()[1]
-
-        bluetooth.advertise_service(server_sock, self.name, self.uuid)
-        client_sock, client_info = server_sock.accept()
+        client_sock, client_info = self.server_sock.accept()
         buid = str(client_info[0])
         self.devices[buid] = BluetoothComThread(client_sock, buid)
         self.devices[buid].setDaemon(True)
@@ -73,6 +73,7 @@ class BluetoothManager(object):
         except bluetooth.btcommon.BluetoothError:
             self.connection_close()
             raise ValueError("Tried to send data to: %s and is disconnected" % buid)
+
     def receive_data(self):
         pass
 
@@ -84,6 +85,7 @@ class BluetoothManager(object):
         '''
         for buid,device in self.devices.iteritems():
             device.close()
+
 
         self.is_connected = False
 
