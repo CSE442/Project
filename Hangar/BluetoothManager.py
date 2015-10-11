@@ -51,7 +51,7 @@ class BluetoothManager(object):
         self.server_sock.close()
         subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
 
-    def add_device(self):
+    def add_phone(self):
         '''
         Will accept a connection from a device, and return
         the device's bluetooth uuid
@@ -63,6 +63,42 @@ class BluetoothManager(object):
         self.devices[buid].start()
         self.is_connected = True
         return buid
+
+    def discover_devices(self):
+        """discover_devices will take 5 seconds and return a list of all devices 
+        in the area that are discoverable. Used for connecting tanks.
+        :returns: TODO
+
+        """
+        devices = bluetooth.discover_devices(duration=5, lookup_names=True, flush_cache=True, lookup_class=False)
+        devices_dict = {}
+
+        for i,j in devices:
+            devices_dict[j] = i 
+
+        return devices_dict
+
+    def connect_device(self, buid):
+        """connect_device will attempt a connection to 
+        the given buid. Returns boolean of whether connection
+        was successful.
+
+        :buid: TODO
+        :returns: TODO
+
+        """
+        uuid = "00001101-0000-1000-8000-00805F9B34FB"
+        device = bluetooth.find_service(uuid = uuid, address = buid)
+        
+        if len(device) == 0:
+            return False
+        
+        sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+        sock.connect((device[0]["host"], device[0]["port"]))
+        self.devices[buid] = BluetoothComThread(sock, buid)
+        self.devices[buid].setDaemon(True)
+        self.devices[buid].start()
+        return True
 
     def send_data(self, buid, data):
         '''
