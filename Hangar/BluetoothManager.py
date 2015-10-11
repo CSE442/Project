@@ -18,7 +18,6 @@ class BluetoothManager(object):
     this class
     """
 
-    is_connected = False
     manager_in_channel, manager_out_channel = channel.Channel()
 
 
@@ -54,9 +53,9 @@ class BluetoothManager(object):
         Stops the bluetooth device and closes all connections.
         Will turn it off if linux.
         """
-        if self.is_connected:
-            self.connection_close()
+        self.connection_close()
         self.server_sock.close()
+        bluetooth.stop_advertising(server_sock)
         subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
 
     def add_device(self):
@@ -70,8 +69,13 @@ class BluetoothManager(object):
         # All new devices will be given manager_in_channel and
         # and given device_out_channel
         device_in_channel, device_out_channel = channel.Channel()
-        listener_thread_id = thread.start_new_thread(listener, (client_sock, buid, self.manager_in_channel,))
-        commander_thread_id = thread.start_new_thread(commander,(client_sock, device_out_channel,))
+
+        listener_thread_id = thread.start_new_thread(listener,\
+                (client_sock, buid, self.manager_in_channel,))
+
+        commander_thread_id = thread.start_new_thread(commander,\
+                (client_sock, device_out_channel,))
+
         self.devices[buid] = {
                 "client_sock" : client_sock,
                 "device_in_channel" : device_in_channel,
@@ -79,43 +83,60 @@ class BluetoothManager(object):
                 "listener_thread_id" : listener_thread_id,
                 "commander_thread_id" : commander_thread_id
                 }
-        self.is_connected = True
         return buid
 
     def discover_devices(self):
-        """discover_devices will take 5 seconds and return a list of all devices 
+        """discover_devices will take 5 seconds and return a list of all devices
         in the area that are discoverable. Used for connecting tanks.
         :returns: TODO
 
         """
-        devices = bluetooth.discover_devices(duration=5, lookup_names=True, flush_cache=True, lookup_class=False)
-        devices_dict = {}
+        devices = bluetooth.discover_devices(duration=5,\
+                                             lookup_names=True,\
+                                             flush_cache=True,\
+                                             lookup_class=False)
+        nearby_devices = {}
 
         for i,j in devices:
-            devices_dict[j] = i 
+            nearby_devices[j] = i
 
-        return devices_dict
+        return nearby_devices
 
-    def connect_device(self, buid):
-        """connect_device will attempt a connection to 
+    def connect_device(self, buid,\
+                       uuid = "00001101-0000-1000-8000-00805F9B34FB"):
+
+        """connect_device will attempt a connection to
         the given buid. Returns boolean of whether connection
-        was successful.
+        was successful. Used to connect the tanks
 
-        :buid: TODO
-        :returns: TODO
+        :buid: bluetooth mac address of device to connect to
+        :uuid: uuid the device is looking for, by default set for HC-06
+        :returns: whether connection was successful or not
 
         """
-        uuid = "00001101-0000-1000-8000-00805F9B34FB"
+
         device = bluetooth.find_service(uuid = uuid, address = buid)
-        
+
         if len(device) == 0:
             return False
-        
+
         sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         sock.connect((device[0]["host"], device[0]["port"]))
-        self.devices[buid] = BluetoothComThread(sock, buid)
-        self.devices[buid].setDaemon(True)
-        self.devices[buid].start()
+        device_in_channel, device_out_channel = channel.Channel()
+
+        listener_thread_id = thread.start_new_thread(listener,\
+                            (client_sock, buid, self.manager_in_channel,))
+
+        commander_thread_id = thread.start_new_thread(commander,\
+                            (client_sock, device_out_channel,))
+
+        self.devices[buid] = {
+                "client_sock" : client_sock,
+                "device_in_channel" : device_in_channel,
+                "device_out_channel" : device_out_channel,
+                "listener_thread_id" : listener_thread_id,
+                "commander_thread_id" : commander_thread_id
+                }
         return True
 
     def send_data(self, buid, data):
@@ -158,8 +179,11 @@ def listener(sock, client_info, send_channel):
     """
     assert type(send_channel) is channel.InChannel
     while True:
-        received_data = sock.recv(1024)
-        send_channel.send({client_info : received_data})
+        try:
+            received_data = sock.recv(1024)
+            send_channel.send({client_info : received_data})
+        except IOError:
+            sock.close()
     thread.exit()
 
 def commander(sock, receive_channel):
