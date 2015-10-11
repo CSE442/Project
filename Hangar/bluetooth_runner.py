@@ -6,13 +6,8 @@ import time
 
 my_class = BluetoothManager.BluetoothManager()
 my_class.bluetooth_start()
-print "discovering devices"
-devices = my_class.discover_devices()
-print devices
-print type(devices)
-print devices.get("HC-06")
-my_class.connect_device(devices.get("HC-06"))
-
-raw_input("Hit enter")
-
+phone = my_class.add_device()
+my_class.send_data(phone, "hello")
+while(True):
+    print my_class.receive_data()
 my_class.bluetooth_stop()
