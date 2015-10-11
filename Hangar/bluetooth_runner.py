@@ -8,7 +8,7 @@ my_class = BluetoothManager.BluetoothManager()
 
 my_class.bluetooth_start()
 phone = my_class.add_device()
-tablet = my_class.add_device()
-blarg = raw_input("Hit enter")
-my_class.connection_close()
+my_class.send_data(phone, "hello")
+while(True):
+    print my_class.receive_data()
 my_class.bluetooth_stop()
