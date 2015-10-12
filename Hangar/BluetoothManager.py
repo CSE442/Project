@@ -55,7 +55,6 @@ class BluetoothManager(object):
         """
         self.connection_close()
         self.server_sock.close()
-        bluetooth.stop_advertising(server_sock)
         subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
 
     def add_device(self):
@@ -88,7 +87,7 @@ class BluetoothManager(object):
     def discover_devices(self):
         """discover_devices will take 5 seconds and return a list of all devices
         in the area that are discoverable. Used for connecting tanks.
-        :returns: TODO
+        :returns: dictionary list of buid : common_name
 
         """
         devices = bluetooth.discover_devices(duration=5,\
@@ -98,7 +97,7 @@ class BluetoothManager(object):
         nearby_devices = {}
 
         for i,j in devices:
-            nearby_devices[j] = i
+            nearby_devices[i] = j
 
         return nearby_devices
 
@@ -115,13 +114,13 @@ class BluetoothManager(object):
 
         """
 
-        device = bluetooth.find_service(uuid = uuid, address = buid)
+        device = bluetooth.find_service(uuid = None, address = buid)
 
         if len(device) == 0:
             return False
 
-        sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        sock.connect((device[0]["host"], device[0]["port"]))
+        client_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+        client_sock.connect((device[0]["host"], device[0]["port"]))
         device_in_channel, device_out_channel = channel.Channel()
 
         listener_thread_id = thread.start_new_thread(listener,\
