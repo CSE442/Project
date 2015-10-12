@@ -18,7 +18,8 @@ def main_bluetooth_in(in_channel, bluetooth_manager):
     """
     assert type(in_channel) is InChannel
     for message in MessageGenerator(bluetooth_manager.receive_data_channel()):
-            out_channel.send(message)
+        assert type(message) is dict
+        out_channel.send(message)
     thread.exit()
 
 def main_bluetooth_out(out_channel, bluetooth_manager):
