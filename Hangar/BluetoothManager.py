@@ -8,6 +8,7 @@ import subprocess
 import Queue
 import channel
 import thread
+from message_generator import MessageGenerator
 
 
 
@@ -156,6 +157,15 @@ class BluetoothManager(object):
         """
         return self.manager_out_channel.receive()
 
+    def receive_data_channel(self):
+        """receive_data_channel will return the channel that external
+        bluetooth devices are writing to. This can be used if the desired
+        output is meant to be continuous
+        :returns: TODO
+
+        """
+        return self.manager_out_channel
+
     def connection_close(self):
         """
         Commands the bluetooth device to close all connections
@@ -196,9 +206,8 @@ def commander(sock, receive_channel):
 
     """
     assert type(receive_channel) is channel.OutChannel
-    while True:
-        command = receive_channel.receive()
-        sock.send(command)
+    for message in MessageGenerator(receive_channel):
+        sock.send(message)
     thread.exit()
 
 
