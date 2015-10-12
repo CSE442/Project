@@ -28,18 +28,25 @@ class BluetoothManager(object):
         self.name = name
         self.uuid = uuid
 
-#       devices contain buid key based dictionary with another
-#       dictionary as it's value. The second dictionary contains
-#       client_sock, device_in_channel as keys, and respective values
-#       for values
+#       devices = {
+#           btmac : {
+#               "client_sock" : client_sock,
+#               "device_in_channel" : device_in_channel,
+#               "device_out_channel" : device_out_channel,
+#               "listener_thread_id" : listener_thread_id,
+#               "commander_thread_id" : commander_thread_id
+#               }
+#
         self.devices = {}
 
     def bluetooth_start(self):
         """
-        Inititiates the bluetooth device. If using linux,
+        Inititiates the bluetooth device. Starts the server socket using
+        RFCOMM, bind's it to a port, and begins listening. If using linux,
         will turn the device on.
         """
-        subprocess.call(['hciconfig', 'hci0', 'up', 'piscan'])
+        if os.name == "posix":
+            subprocess.call(['hciconfig', 'hci0', 'up', 'piscan'])
 
         self.server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         self.server_sock.bind(("", bluetooth.PORT_ANY))
@@ -56,41 +63,49 @@ class BluetoothManager(object):
         """
         self.connection_close()
         self.server_sock.close()
-        subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
+        if os.name == "posix":
+            subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
 
     def add_device(self):
         """
         Will accept a connection from a device, and return
-        the device's bluetooth uuid
+        the device's bluetooth uuid. The device can be any device that
+        is currently trying to connect. To connect tanks, use discover_devices
+        with connect_device.
         """
         client_sock, client_info = self.server_sock.accept()
-        buid = str(client_info[0])
+        btmac = str(client_info[0])
 
         # All new devices will be given manager_in_channel and
         # and given device_out_channel
         device_in_channel, device_out_channel = channel.Channel()
 
+#       Spawns listener thread for given btmac, used for
+#       retrieving data from the device
         listener_thread_id = thread.start_new_thread(listener,\
-                (client_sock, buid, self.manager_in_channel,))
+                (client_sock, btmac, self.manager_in_channel,))
 
+#       Spawns commander thread for given btmac, used for
+#       sending data to the device
         commander_thread_id = thread.start_new_thread(commander,\
                 (client_sock, device_out_channel,))
 
-        self.devices[buid] = {
+        self.devices[btmac] = {
                 "client_sock" : client_sock,
                 "device_in_channel" : device_in_channel,
                 "device_out_channel" : device_out_channel,
                 "listener_thread_id" : listener_thread_id,
                 "commander_thread_id" : commander_thread_id
                 }
-        return buid
+        return btmac
 
     def discover_devices(self):
         """discover_devices will take 5 seconds and return a list of all devices
         in the area that are discoverable. Used for connecting tanks.
-        :returns: dictionary list of buid : common_name
+        :returns: dictionary list of btmac : common_name
 
         """
+#       Search for nearby devices in timelimit of 5
         devices = bluetooth.discover_devices(duration=5,\
                                              lookup_names=True,\
                                              flush_cache=True,\
@@ -100,22 +115,26 @@ class BluetoothManager(object):
         for i,j in devices:
             nearby_devices[i] = j
 
+#       output a dictionary list in format:
+#       nearby_devices = {
+#                          btmac : device_name
+#                      }
         return nearby_devices
 
-    def connect_device(self, buid,\
+    def connect_device(self, btmac,\
                        uuid = "00001101-0000-1000-8000-00805F9B34FB"):
 
         """connect_device will attempt a connection to
-        the given buid. Returns boolean of whether connection
+        the given btmac. Returns boolean of whether connection
         was successful. Used to connect the tanks
 
-        :buid: bluetooth mac address of device to connect to
+        :btmac: bluetooth mac address of device to connect to
         :uuid: uuid the device is looking for, by default set for HC-06
         :returns: whether connection was successful or not
 
         """
 
-        device = bluetooth.find_service(uuid = None, address = buid)
+        device = bluetooth.find_service(uuid = uuid, address = btmac)
 
         if len(device) == 0:
             return False
@@ -125,12 +144,12 @@ class BluetoothManager(object):
         device_in_channel, device_out_channel = channel.Channel()
 
         listener_thread_id = thread.start_new_thread(listener,\
-                            (client_sock, buid, self.manager_in_channel,))
+                            (client_sock, btmac, self.manager_in_channel,))
 
         commander_thread_id = thread.start_new_thread(commander,\
                             (client_sock, device_out_channel,))
 
-        self.devices[buid] = {
+        self.devices[btmac] = {
                 "client_sock" : client_sock,
                 "device_in_channel" : device_in_channel,
                 "device_out_channel" : device_out_channel,
@@ -139,20 +158,22 @@ class BluetoothManager(object):
                 }
         return True
 
-    def send_data(self, buid, data):
-        """send_data adds the data to the queue of buid
-        :buid: bluetooth mac address of device to send data to
+    def send_data(self, btmac, data):
+        """send_data adds the data to the queue of btmac to read
+
+        :btmac: bluetooth mac address of device to send data to
         :data: the actual data (any form) to be sent to the device
         :returns: none
 
         """
-        self.devices[buid]["device_in_channel"].send(data)
+        self.devices[btmac]["device_in_channel"].send(data)
 
     def receive_data(self):
         """receive_data will return the oldest data in the bluetooth
         devices receive queue. Returns in a dictionary with the key as
-        the buid and value as the data it sent.
-        :returns: dictionary of buid : data
+        the btmac and value as the data it sent.
+
+        :returns: dictionary of btmac : data
 
         """
         return self.manager_out_channel.receive()
@@ -161,7 +182,7 @@ class BluetoothManager(object):
         """receive_data_channel will return the channel that external
         bluetooth devices are writing to. This can be used if the desired
         output is meant to be continuous
-        :returns: TODO
+        :returns: BluetoothManager channel for bluetooth device threads
 
         """
         return self.manager_out_channel
@@ -170,9 +191,11 @@ class BluetoothManager(object):
         """
         Commands the bluetooth device to close all connections
         with it's devices.
+
+        :returns: None
         """
-        for buid in self.devices.iterkeys():
-            self.devices[buid]["client_sock"].close()
+        for btmac in self.devices.iterkeys():
+            self.devices[btmac]["client_sock"].close()
 
 
 def listener(sock, client_info, send_channel):
@@ -180,16 +203,24 @@ def listener(sock, client_info, send_channel):
     The thread entry point for a bluetooth device to send data.
     The behavior is undefined unless this function controls a thread.
 
-    :sock: TODO
-    :client_info: TODO
-    :send_channel: TODO
-    :returns: TODO
+    listener continuously receives data from the bluetooth device it was
+    spawned for. Returns the data into send_channel.
+
+    :sock: Socket specific to the client, generated during handshaking
+    :client_info: The Bluetooth Mac Address (BTMAC) of the device
+    :send_channel: Channel to send data received to
+    :returns: none
 
     """
+
     assert type(send_channel) is channel.InChannel
     while True:
+#       shows software errors without try, except block
         try:
             received_data = sock.recv(1024)
+#           data_sent = {
+#                         client_info : received_data
+#                     }
             send_channel.send({client_info : received_data})
         except IOError:
             sock.close()
@@ -200,55 +231,20 @@ def commander(sock, receive_channel):
     The thread entry point for a bluetooth device to send data.
     The behavior is undefined unless this function controls a thread.
 
-    :sock: TODO
-    :receive_channel: TODO
-    :returns: TODO
+    commander is used to send data to the bluetooth device. Constantly
+    reads from receive_channel and will try to send data to the device
+
+    :sock: socket to communicate witht the client
+    :receive_channel: channel to receive commands from
+    :returns: none
 
     """
     assert type(receive_channel) is channel.OutChannel
     for message in MessageGenerator(receive_channel):
-        sock.send(message)
+#       shows software errors without try, except block
+        try:
+            sock.send(message)
+        except IOError:
+            sock.close
+            break
     thread.exit()
-
-
-
-
-
-
-
-
-
-
-
-#class BluetoothComThread(threading.Thread):
-#    """
-#    Thread to be used in order to communicate with a
-#    bluetooth device. Should not be used outside
-#    of this
-#    """
-#
-#    def __init__ (self, sock, client_info, send_channel, receive_channel):
-#        threading.Thread.__init__(self)
-#        self.sock = sock
-#        self.client_info = client_info
-#
-#        # retrieve data from BluetoothManager with receive_channel
-#        # send data to BluetoothManager with send_channel
-#        self.send_channel = send_channel
-#        self.receive_channel = receive_channel
-#
-#    def run(self):
-#        try:
-#            while(True):
-#                received_data = self.sock.recv(1024)
-#                self.send_channel.send({self.client_info : received_data})
-#
-#        except IOError:
-#            self.close()
-#
-#    def send_data(self, data):
-#        self.sock.send(data)
-#
-#    def close(self):
-#        self.sock.close()
-
