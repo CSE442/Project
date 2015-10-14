@@ -11,23 +11,29 @@ from   channel           import *
 from   main_unity        import *
 from   main_bluetooth    import *
 from   message_generator import MessageGenerator
-        
+from   BluetoothManager  import BluetoothManager
+
 def main():
     # Create the communication channels between threads
     bluetooth_in_channel,       main_bluetooth_out_channel = Channel()
     main_bluetooth_in_channel,  bluetooth_out_channel      = Channel()
     main_unity_in_channel,      unity_out_channel          = Channel()
 
+    # Create the bluetooth manager class
+    bluetooth_manager = BluetoothManager()
+
     # Retreive the Main Thread ID for Fun and Profit
     main_thread_id          = thread.get_ident()
 
     # Spawn the Bluetooth Transmitter Thread
     bluetooth_in_thread_id  = thread.start_new_thread(main_bluetooth_in,
-                                                      (bluetooth_in_channel,))
+                                                      (bluetooth_in_channel,
+                                                          bluetooth_manager,))
 
     # Spawn the Bluetooth Receiver Thread
-    bluetooth_out_thread_id = thread.start_new_thread(main_bluetooth_out, 
-                                                      (bluetooth_out_channel,))
+    bluetooth_out_thread_id = thread.start_new_thread(main_bluetooth_out,
+                                                      (bluetooth_out_channel,
+                                                          bluetooth_manager,))
 
     # Spawn the Visualizer Thread
     unity_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
