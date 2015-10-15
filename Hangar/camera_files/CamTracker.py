@@ -12,9 +12,12 @@ camera = cv2.VideoCapture(capturePort)
 def __del__():
     self.video.release()
     
+#possbily useful method to grab a single frame
+#from camera and save to file.
 def get_image():
         retval, im = camera.read()
         return im
+
 
 DEFAULT_FRAME_WIDTH =1280
 DEFAULT_FRAME_HEIGHT=720
@@ -25,18 +28,25 @@ FRAME_WIDTH=DEFAULT_FRAME_WIDTH
 MIN_OBJECT_AREA = 20*20
 MAX_OBJECT_AREA = FRAME_HEIGHT*FRAME_WIDTH
 
-#def repeat():
 print("Attempting to grab video frames")
-#	testframe = cv2.QueryFrame(capture)
+
 while True:
-	#testFrame = camera.video.read()
-	#cv2.ShowImage("testWindow", testframe)
+	
+    #Reads a frame from the camera and stores 
 	_, frame = camera.read()
+
+	#converts frame from BGR to HSV
 	hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 	
+	#feeds the image frame to testWindow for 
+	#debuging/tesing display
+	cv2.imshow('testWindow',frame)
 
-	cv2.imshow('frame',frame)
+	#The following allows the running while 
+	#loop to be broken by pressing ESC closing 
+	#the program
 	k = cv2.waitKey(5) & 0xFF
 	if k == 27:
+		cv2.imwrite("finalFrame.png", frame)
 		break
 cv2.destroyAllWindows()
