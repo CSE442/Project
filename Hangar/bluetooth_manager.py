@@ -21,7 +21,6 @@ class BluetoothManager(object):
 
     manager_in_channel, manager_out_channel = channel.Channel()
 
-
     def __init__(self, name = "Default_Name",
             uuid = "fa87c0d0-afac-11de-6b39-0800200c9a66"):
 
@@ -234,7 +233,7 @@ def commander(sock, receive_channel):
     commander is used to send data to the bluetooth device. Constantly
     reads from receive_channel and will try to send data to the device
 
-    :sock: socket to communicate witht the client
+    :sock: socket to communicate with the client
     :receive_channel: channel to receive commands from
     :returns: none
 
@@ -245,6 +244,6 @@ def commander(sock, receive_channel):
         try:
             sock.send(message)
         except IOError:
-            sock.close
+            sock.close()
             break
     thread.exit()
