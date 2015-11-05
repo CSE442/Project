@@ -52,8 +52,12 @@ class BluetoothManager(object):
         self.server_sock.listen(1)
         port = self.server_sock.getsockname()[1]
 
-        bluetooth.advertise_service(self.server_sock, self.name, self.uuid)
-
+        bluetooth.advertise_service(self.server_sock,
+                                    self.name,
+                                    service_id = self.uuid,
+                                    service_classes = [self.uuid, bluetooth.SERIAL_PORT_CLASS],
+                                    profiles = [bluetooth.SERIAL_PORT_PROFILE]
+                                    )
 
     def bluetooth_stop(self):
         """
@@ -72,6 +76,7 @@ class BluetoothManager(object):
         is currently trying to connect. To connect tanks, use discover_devices
         with connect_device.
         """
+
         client_sock, client_info = self.server_sock.accept()
         btmac = str(client_info[0])
 
