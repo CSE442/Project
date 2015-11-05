@@ -35,6 +35,8 @@ def connect_tanks_prompt(bluetooth_manager):
     print "* Please enter numbers as a space separated list *"
     print "**************************************************"
     user_input = raw_input("> ")
+    if len(user_input) == 0:
+        return connected_tanks
     for num in user_input.split(" "):
         if (bluetooth_manager.connect_device(btmac[int(num)])):
             connected_tanks[btmac[int(num)]] = common_name[int(num)]

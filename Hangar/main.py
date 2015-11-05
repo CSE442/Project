@@ -7,11 +7,12 @@
 
 import socket
 import thread            as     thread
+import bluetooth_prompt  as     bp
 from   channel           import *
 from   main_unity        import *
 from   main_bluetooth    import *
 from   message_generator import MessageGenerator
-from   bluetooth_manager  import BluetoothManager
+from   bluetooth_manager import BluetoothManager
 
 def main():
     # Create the communication channels between threads
@@ -44,6 +45,21 @@ def main():
                                                   , unity_receive_channel
                                                   ))
 
+    # Before making any connections, ensure all devices are paired with the server
+
+    bluetooth_manager.bluetooth_start()
+    # Go through a prompt for connected the tanks and get a dictionary of the tanks
+    # Dictionary: Key = Bluetooth MAC, Value = Device Name
+    connected_tanks = bp.connect_tanks_prompt(bluetooth_manager)
+
+    # Allows phones to connect to server and returns a list of Bluetooth MACs
+    # that connected to it (NOT A DICTIONARY so no device names due to api restriction)
+    connected_phones = bp.connect_phones_prompt(bluetooth_manager, 2)
+    # The "2" can be changed to number of devices needed to connect, eventually
+    # become command line
+
+    # Replace this with however the messages from Bluetooth devices should be dealt with.
+    # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
     # Receive bluetooth messages
     for message in MessageGenerator(main_bluetooth_receive_channel):
         # this will loop forever with the next message from bluetooth
