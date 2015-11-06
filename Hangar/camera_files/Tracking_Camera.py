@@ -5,10 +5,8 @@
 # refrence: Code sourced from Aaron Preston
 # purpose: Provides setup for camera and colored blob tracking
 import time
-import syus
+import sys
 import cv2
-import numpy as np
-import SimpleCV
 
 #################################################################################
 #general setting variables for quick adjustment and fine tuning
@@ -100,7 +98,7 @@ final_orange_x=0
 final_orange_y=0
 
 #sets up camera with correct port
-camera = cv2.VideoCapture(video_capture_port):
+camera = cv2.VideoCapture(video_capture_port)
 
 _, initial_frame = camera.read()
 
@@ -279,7 +277,7 @@ if red_exists:
 
 #Displays the monified frame for debugging purposes
 if debugging_mode==True:
-	cv2.imshow('Initialization',initialFrame)       
+	cv2.imshow('Initialization',initial_frame)       
 
 #################################################################################
 #Tracking Loop
@@ -322,7 +320,7 @@ while camera.isOpened():
 				print "no colors present or all colors found for this loop"
 			break
 
-		if r in range(0, heightm step/step_divisor):
+		if r in range(0, height, step/step_divisor):
 			#if (not blue_exists or blue_found) and (not green_exists or green_found) and (not red_exists or red_found) and (not orange_exists or orange_found):
 			if (not blue_exists or blue_found) and (not green_exists or green_found) and (not red_exists or red_found):
 				break
@@ -475,16 +473,16 @@ while camera.isOpened():
 
 	#show results in windows
 	if debugging_mode:
-		if blueExists:
-	        print 'Blue: (', average_blue_x, ',', average_blue_y, ')' 
-	    if greenExists:
-	        print 'Green: (', average_green_y, ',', average_green_y, ')' 
-	    if redExists:
-	        print 'Red: (', average_red_x, ',', average_red_y, ')' 
-	    image_counter+=1
-	    print("--- %s seconds ---" % (time.time() - start_time))
-	    print "frame ", frame_count
-	    if frame_count<3:
-	    	cv2.imshow(frame_count, frame)
-	    if debugging_mode and debugging_sleep:
-	    	time.sleep(2)
+		if blue_exists:
+			print 'Blue: (', average_blue_x, ',', average_blue_y, ')' 
+		if green_exists:
+			print 'Green: (', average_green_y, ',', average_green_y, ')' 
+		if red_exists:
+			print 'Red: (', average_red_x, ',', average_red_y, ')' 
+		image_counter+=1
+		print("--- %s seconds ---" % (time.time() - start_time))
+		print "frame ", frame_count
+		if frame_count<3:
+			cv2.imshow(frame_count, frame)
+		if debugging_mode and debugging_sleep:
+			time.sleep(2)
