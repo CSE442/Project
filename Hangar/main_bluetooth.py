@@ -39,7 +39,7 @@ def main_bluetooth_receive(receive_channel, bluetooth_manager):
     assert type(receive_channel) is OutChannel
     for message in MessageGenerator(receive_channel):
         assert type(message) is dict
-        for btmac,data in message:
-            bluetooth_manager.send(btmac, data)
+        for btmac,data in message.iteritems():
+            bluetooth_manager.send_data(btmac, data)
     thread.exit()
 

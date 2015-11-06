@@ -12,6 +12,7 @@ def connect_tanks_prompt(bluetooth_manager):
     :returns: dictionary of devices that connected successfully
 
     """
+    print "Scanning for new devices..."
     assert type(bluetooth_manager) is BluetoothManager
     nearby_devices = bluetooth_manager.discover_devices()
     btmac = []
@@ -55,6 +56,7 @@ def connect_phones_prompt(bluetooth_manager, numDevices):
     :returns: list of Bluetooth MAC addresses that connected to the server
 
     """
+    print "Accepting connections from", numDevices, "devices"
     assert type(bluetooth_manager) is BluetoothManager
     connected_phones = []
     for i in range(numDevices):
