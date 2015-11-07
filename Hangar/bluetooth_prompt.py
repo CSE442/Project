@@ -63,4 +63,3 @@ def connect_phones_prompt(bluetooth_manager, numDevices):
         btmac = bluetooth_manager.add_device()
         connected_phones.append(btmac)
     return connected_phones
-

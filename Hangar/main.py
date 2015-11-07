@@ -52,11 +52,12 @@ def main():
     # Dictionary: Key = Bluetooth MAC, Value = Device Name
     connected_tanks = bp.connect_tanks_prompt(bluetooth_manager)
 
+    numPhones  = int(raw_input("Enter number of phone(s) to connect: "))
+
     # Allows phones to connect to server and returns a list of Bluetooth MACs
     # that connected to it (NOT A DICTIONARY so no device names due to api restriction)
-    connected_phones = bp.connect_phones_prompt(bluetooth_manager, 1)
-    # The "1" can be changed to number of devices needed to connect, eventually
-    # become command line
+    connected_phones = bp.connect_phones_prompt(bluetooth_manager, numPhones)
+    print len(connected_phones), "phone(s) connected"
 
     # Temporary work around for selecting a tank for a phone,
     # Only works for equal number of tanks and phones
@@ -70,10 +71,14 @@ def main():
     # Replace this with however the messages from Bluetooth devices should be dealt with.
     # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
     # Receive bluetooth messages
-    for message in MessageGenerator(main_bluetooth_receive_channel):
-        # this will loop forever with the next message from bluetooth
-        for btmac,data in message.iteritems():
-            main_bluetooth_send_channel.send({device_groups[btmac] : data})
+    try:
+        for message in MessageGenerator(main_bluetooth_receive_channel):
+            # this will loop forever with the next message from bluetooth
+            for btmac,data in message.iteritems():
+                main_bluetooth_send_channel.send({device_groups[btmac] : data})
+    except KeyboardInterrupt:
+        thread.exit()
+
 
     # Close the main thread
     thread.exit()
