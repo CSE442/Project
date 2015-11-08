@@ -718,6 +718,9 @@ def Tracker(send_channel):
                         outputImg[x, y] = (0,0,255)
         imageCounter = imageCounter +1 
         
+        if start_time != time.time(): 
+            colorDetectionList['---fps---']= 1/(time.time() - start_time)
+
         send_channel.send(colorDetectionList)
 
        #  print("Dictionary: ")
@@ -729,6 +732,7 @@ def Tracker(send_channel):
        # #cv2.imshow('imageTitle',outputImg)
         #save result to png
         cv2.imwrite('C:\Users\Aaron\python\images\ColorTracked.png', frame)
+        cv2.imshow('Initialization',frame)
         #time.sleep(2)
         k = cv2.waitKey(5) & 0xFF
         if k == 27:
