@@ -6,9 +6,9 @@
 #
 
 import socket
-import state
 import thread            as     thread
 import bluetooth_prompt  as     bp
+from   state             import *
 from   channel           import *
 from   main_unity        import *
 from   main_bluetooth    import *
@@ -48,55 +48,69 @@ def main():
 
     # Before making any connections, ensure all devices are paired with the server
 
-    bluetooth_manager.bluetooth_start()
-    # Go through a prompt for connected the tanks and get a dictionary of the tanks
-    # Dictionary: Key = Bluetooth MAC, Value = Device Name
-    connected_tanks = bp.connect_tanks_prompt(bluetooth_manager)
-
-    numPhones  = int(raw_input("Enter number of phone(s) to connect: "))
-
-    # Allows phones to connect to server and returns a list of Bluetooth MACs
-    # that connected to it (NOT A DICTIONARY so no device names due to api restriction)
-    connected_phones = bp.connect_phones_prompt(bluetooth_manager, numPhones)
-    print len(connected_phones), "phone(s) connected"
-
-    # Temporary work around for selecting a tank for a phone,
-    # Only works for equal number of tanks and phones
-
-
-    for tank in connected_tanks.iterkeys():
-        pass
-
-
     # Replace this with however the messages from Bluetooth devices should be dealt with.
     # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
     # Receive bluetooth messages
-    while(True):
-        try:
-            time_prev = time.clock()
-            time_next = None
-            state_prev = State.initial()
-            state_next = None
+    try:
+        time_prev = time.clock()
+        time_next = None
+        state_prev = State.initial()
+        state_next = None
+        uuid_generator = Uuid()
 
-            while state_prev.is_running():
+        bluetooth_manager.bluetooth_start()
+        # Go through a prompt for connected the
+        # tanks and get a dictionary of the tanks
+        # Dictionary: Key = Bluetooth MAC, Value = Device Name
+        connected_tanks = bp.connect_tanks_prompt(bluetooth_manager)
 
-                time_next = time.clock()
-                state_next = state_prev.next([], time_prev, time_next - time_prev)
-                state_prev = state_next
-                time_prev = time_next
-                print json.dumps(state_next.to_json(),
-                                 sort_keys = True,
-                                 indent = 4,
-                                 separators = (', ', ': '))
+        numPhones  = int(raw_input("Enter number of phone(s) to connect: "))
 
-                '''
-        for message in MessageGenerator(main_bluetooth_receive_channel):
-            # this will loop forever with the next message from bluetooth
-            for btmac,data in message.iteritems():
-                main_bluetooth_send_channel.send({device_groups[btmac] : data})
-                '''
-        except KeyboardInterrupt:
-            thread.exit()
+        # Allows phones to connect to server and returns a list of Bluetooth MACs
+        # that connected to it (NOT A DICTIONARY so
+        # no device names due to api restriction)
+        connected_phones = bp.connect_phones_prompt(bluetooth_manager,
+                                                    numPhones)
+        print len(connected_phones), "phone(s) connected"
+
+        time_next = time.clock()
+
+
+        # Add all phones and tanks to the state
+        i = 0
+        for tank in connected_tanks.iterkeys():
+            print tank
+            state_next = state_prev.next(\
+                    PlayerJoinEvent(uuid_generator.generate(),
+                        Player(uuid_generator.generate(),
+                               btmac = connected_phones[i],
+                               tank = Tank(uuid_generator.generate(),
+                                           btmac = tank))),
+                               time_prev, time_next - time_prev)
+        state_prev = state_next
+        time_prev = time_next
+
+        while state_prev.is_running():
+
+            try:
+                bt_data = main_bluetooth_receive_channel.receive_exn()
+                assert type(bt_data) is dict
+
+            except ReceiveException:
+                pass
+            '''
+            time_next = time.clock()
+            state_next = state_prev.next([], time_prev, time_next - time_prev)
+            state_prev = state_next
+            time_prev = time_next
+            '''
+            print json.dumps(state_next.to_json(),
+                             sort_keys = True,
+                             indent = 4,
+                             separators = (', ', ': '))
+
+    except KeyboardInterrupt:
+        thread.exit()
 
 
     # Close the main thread

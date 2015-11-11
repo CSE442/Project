@@ -506,8 +506,8 @@ class Tank(object):
             orientation = Orientation(),
             turret = Turret(Uuid.generate()),
             health = 10,
-            tank_btmac = "",
-            turret_btmac = ""):
+            btmac = "",
+            ):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
         assert isinstance(turret, Turret)
@@ -735,8 +735,8 @@ class LobbyState(State):
 
     def next(self, event, time, elapsed_time):
         if isinstance(event, PlayerJoinEvent):
-            self._players.update({event.player.uuid, event.player})
-            return LobbyState(self.uuid, self._players)
+            self._players.update({event.player.uuid : event.player})
+            return LobbyState(self._uuid, self._players)
         else:
             raise NotImplementedError()
     def is_running(self):
@@ -751,8 +751,8 @@ class LobbyState(State):
     def to_json(self):
         return {
             'variant': 'LobbyState',
-            'uuid': self.uuid,
-            'players': DictionaryUtil.to_json(self.players)
+            'uuid': self._uuid,
+            'players': DictionaryUtil.to_json(self._players)
         }
 
 class QuitState(State):
@@ -899,4 +899,4 @@ def __main__():
                          sort_keys = True,
                          indent = 4,
                          separators = (', ', ': '))
-__main__()
+#__main__()
