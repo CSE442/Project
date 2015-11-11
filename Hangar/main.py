@@ -6,6 +6,7 @@
 #
 
 import socket
+import struct
 import thread            as     thread
 import bluetooth_prompt  as     bp
 from   keyboard_input    import *
@@ -50,11 +51,11 @@ def main():
                                                   ))
 
     # Spawn thread for controlling tank w/ keyboard
-    keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
+#    keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
 
     # Spawn the Tracking camera thread
-    tracking_camera_id=thread.start_new_thread(camera.Tracker,
-                                               (tracking_channel_send,))
+#    tracking_camera_id=thread.start_new_thread(camera.Tracker,
+#                                               (tracking_channel_send,))
 
     # Before making any connections, ensure all devices are paired with the server
     # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
@@ -104,20 +105,21 @@ def main():
             try:
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
-                print bt_data
-            except ReceiveException:
+                for btmac,data in bt_data.iteritems():
+                    print btmac, struct.unpack('b',data)
+            except:
                 pass
             '''
             time_next = time.clock()
             state_next = state_prev.next([], time_prev, time_next - time_prev)
             state_prev = state_next
             time_prev = time_next
-            '''
             if isinstance(state_next, State):
                 print json.dumps(state_next.to_json(),
                                  sort_keys = True,
                                  indent = 4,
                                  separators = (', ', ': '))
+                '''
 
     except KeyboardInterrupt:
         thread.exit()
