@@ -89,8 +89,11 @@ def main():
                                tank = Tank(uuid_generator.generate(),
                                            btmac = tank))),
                                time_prev, time_next - time_prev)
-        state_prev = state_next
-        time_prev = time_next
+
+        if type(state_next) is State:
+            state_prev = state_next
+            time_prev = time_next
+
 
         while state_prev.is_running():
 
@@ -106,10 +109,11 @@ def main():
             state_prev = state_next
             time_prev = time_next
             '''
-            print json.dumps(state_next.to_json(),
-                             sort_keys = True,
-                             indent = 4,
-                             separators = (', ', ': '))
+            if isinstance(state_next, State):
+                print json.dumps(state_next.to_json(),
+                                 sort_keys = True,
+                                 indent = 4,
+                                 separators = (', ', ': '))
 
     except KeyboardInterrupt:
         thread.exit()
