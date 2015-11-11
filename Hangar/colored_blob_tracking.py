@@ -34,10 +34,10 @@ colors_dict = {
 }
 
 #########Functions
-def isColor(pixel,dict_of_colors, color_key):
+def isColor(R,G,B,color_object):
 	#convert pixel from BGR to HSV
 	#check if in range and Return True or False
-	
+
 	#Example:
 	# Mat src=imread("image.jpg");
 	# Mat HSV;

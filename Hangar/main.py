@@ -118,8 +118,8 @@ def main():
     # Spawn the Tracking camera thread
     tracking_camera_id=thread.start_new_thread(camera.Tracker, (tracking_channel_send,)) 
     #example use of incoming message for camera dictionary:
-    #for message in message_generator.MessageGenerator(tracking_channel_recieve):
-    # print message 
+    for message in message_generator.MessageGenerator(tracking_channel_recieve):
+     print message 
 
     # Close the main thread
     thread.exit()
