@@ -58,7 +58,6 @@ def main():
         time_next = None
         state_prev = State.initial()
         state_next = None
-        uuid_generator = Uuid()
 
         bluetooth_manager.bluetooth_start()
         # Go through a prompt for connected the
@@ -83,24 +82,21 @@ def main():
         for tank in connected_tanks.iterkeys():
             print tank
             state_next = state_prev.next(\
-                    PlayerJoinEvent(uuid_generator.generate(),
-                        Player(uuid_generator.generate(),
+                    PlayerJoinEvent(Uuid.generate(),
+                        Player(Uuid.generate(),
                                btmac = connected_phones[i],
-                               tank = Tank(uuid_generator.generate(),
+                               tank = Tank(Uuid.generate(),
                                            btmac = tank))),
                                time_prev, time_next - time_prev)
 
-        if type(state_next) is State:
+        if isinstance(state_next, State):
             state_prev = state_next
             time_prev = time_next
 
-
         while state_prev.is_running():
-
             try:
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
-
             except ReceiveException:
                 pass
             '''
