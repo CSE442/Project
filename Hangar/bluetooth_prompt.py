@@ -26,12 +26,15 @@ def connect_tanks_prompt(bluetooth_manager):
     print "**************************************************"
     print "*                                                *"
     for i in range(len(btmac)):
-        print_val = "* " + " " + str(i) + ". "\
-                + str(common_name[i]) + " : " + str(btmac[i])
-        print_val += " " * (49 - len(print_val))
-        print_val += "*"
-        print print_val
-        print "*                                                *"
+        try:
+            print_val = "* " + " " + str(i) + ". "\
+                    + str(common_name[i]) + " : " + str(btmac[i])
+            print_val += " " * (49 - len(print_val))
+            print_val += "*"
+            print print_val
+            print "*                                                *"
+        except UnicodeEncodeError:
+            pass
     print "**************************************************"
     print "* Please enter numbers as a space separated list *"
     print "**************************************************"
