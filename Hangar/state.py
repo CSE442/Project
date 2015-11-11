@@ -6,6 +6,24 @@
 # purpose: Provide the implementation of the game state
 
 import time
+import json
+
+class DictionaryUtil(object):
+    @staticmethod
+    def from_json(self, value_type):
+        result = {}
+        for key in self:
+            value = self[key]
+            result[key] = value_type.from_json(value)
+        return result
+
+    @staticmethod
+    def to_json(self):
+        result = {}
+        for key in self:
+            value = self[key]
+            result[key] = value.to_json()
+        return result
 
 class Quaternion(object):
     def __init__(self, a = 0.0, i = 0.0, j = 0.0, k = 0.0):
@@ -55,6 +73,16 @@ class Quaternion(object):
         return Matrix3x3((1 - 2*j**2 - 2*k**2,  2*i*j - 2*k*a,  2*i*k + 2*j*a),
                          (2*i*j + 2*a*k,  1 - 2*i**2 - 2*k**2,  2*j*k - 2*i*a),
                          (2*i*k - 2*j*a,  2*j*k + 2*i*a,  1 - 2*i**2 - 2*j**2))
+
+    @staticmethod
+    def from_json(json):
+        return Quaternion(json['a'],
+                          json['i'],
+                          json['j'],
+                          json['k'])
+
+    def to_json(self):
+        return { 'a': self.a, 'i': self.i, 'j': self.j, 'k': self.k }
 
     def __add__(self, other):
         assert type(other) is Quaternion
@@ -146,6 +174,17 @@ class Matrix3x3(object):
                        self.rows[1][index],
                        self.rows[2][index])
 
+    @staticmethod
+    def from_json(json):
+        return Matrix3x3((Vector3.from_json(json[0]),
+                          Vector3.from_json(json[1]),
+                          Vector3.from_json(json[2])))
+
+    def to_json(self):
+        return [ self.row_vector(0).to_json(),
+                 self.row_vector(1).to_json(),
+                 self.row_vector(2).to_json() ]
+
     def __mul__(self, other):
         if type(other) is float:
             result = Matrix3x3.zero()
@@ -195,15 +234,6 @@ class Vector3(object):
     def tuple(self):
         return (self.x, self.y, self.z)
 
-    def x(self):
-        return self.x
-
-    def y(self):
-        return self.y
-
-    def z(self):
-        return self.z
-
     def dot(self, other):
         assert type(other) is Vector3
         return self.x * other.x + self.y * other.y + self.z * other.z
@@ -213,6 +243,13 @@ class Vector3(object):
         return sqrt((self.x - other.x) ** 2 +
                     (self.y - other.y) ** 2 + 
                     (self.z - other.z) ** 2)
+
+    @staticmethod
+    def from_json(json):
+        return Vector3(json[0], json[1], json[2])
+
+    def to_json(self):
+        return [self.x, self.y, self.z]
 
     def __add__(self, other):
         assert type(other) is Vector3
@@ -246,11 +283,16 @@ class Orientation(object):
         self.linear = linear
         self.angular = angular
 
-    def linear(self):
-        return self.linear
+    @staticmethod
+    def from_json(json):
+        return Orientation(Vector3.from_json(json.linear),
+                           Quaternion.from_json(json.angular))
 
-    def angular(self):
-        return self.angular
+    def to_json(self):
+        return {
+            'linear': self.linear.to_json(),
+            'angular': self.angular.to_json()
+        }
 
 class Physics(object):
     def __init__():
@@ -292,57 +334,8 @@ class Uuid(object):
 
     @staticmethod
     def generate():
-        next = next + 1
-        return next
-
-class Event(object):
-    def __init__():
-        raise NotImplementedError()
-
-    def uuid():
-        raise NotImplementedError()
-
-class PlayerJoinEvent(Event):
-    def __init__(
-            self,
-            uuid,
-            player = Player()):
-        assert type(uuid) is int
-        assert isinstance(player, Player)
-        self.uuid = uuid
-        self.player = player
-
-    def uuid(self):
-        return self.uuid
-
-    def player(self):
-        return self.player
-
-class PlayerFireEvent(Event):
-    def __init__(
-            self, 
-            uuid,
-            player_uuid = 0):
-        assert type(uuid) is int
-        assert type(player_uuid) is int
-        self.uuid = uuid
-        self.player_uuid = player_uuid
-
-    def uuid(self):
-        return self.uuid
-
-    def player_uuid(self):
-        return self.player_uuid
-
-class GameStartEvent(Event):
-    def __init__(
-            self,
-            uuid):
-        assert type(uuid) is int
-        self.uuid = uuid
-    
-    def uuid(self):
-        return self.uuid
+        Uuid.next += 1
+        return Uuid.next
 
 class Bullet(object):
     def __init__():
@@ -358,6 +351,16 @@ class Bullet(object):
         raise NotImplementedError()
 
     def advance():
+        raise NotImplementedError()
+
+    @staticmethod
+    def from_json(json):
+        if json['variant'] == 'DefaultBullet':
+            return DefaultBullet.from_json(json)
+        else:
+            raise IllegalVariantError(json['variant'])
+
+    def to_json():
         raise NotImplementedError()
 
 class DefaultBullet(Bullet):
@@ -376,20 +379,24 @@ class DefaultBullet(Bullet):
         self.orientation = orientation
         self.orientation_delta = orientation_delta
 
-    def uuid(self):
-        return self.uuid
-
-    def orientation(self):
-        return self.orientation;
-
-    def orientation_delta(self):
-        return self.orientation_delta
-
-    def damage(self):
-        return self.damage
-
     def collision_radius(self):
         return 1.0
+
+    @staticmethod
+    def from_json(json):
+        return DefaultBullet(json['uuid'],
+                             json['damage'],
+                             Orientation.from_json(json['orientation']),
+                             Orientation.from_json(json['orientation_delta']))
+
+    def to_json(self):
+        return {
+            'variant': 'DefaultBullet',
+            'uuid': self.uuid,
+            'damage': self.damage,
+            'orientation': self.orientation.to_json(),
+            'orientation_delta': self.orientation_delta.to_json()
+        }
 
     def advance(self, delta_time):
         assert type(delta_time) is float
@@ -414,11 +421,21 @@ class Weapon(object):
     def fire():
         raise NotImplementedError()
 
+    @staticmethod
+    def from_json(json):
+        if json['variant'] == 'DefaultWeapon':
+            return DefaultWeapon.from_json(json)
+        else:
+            raise IllegalVariantError(json['variant'])
+
+    def to_json():
+        raise NotImplementedError()
+
 class DefaultWeapon(Weapon):
     def __init__(
-            self, 
+            self,
             uuid,
-            ammo = 0, 
+            ammo = 0,
             damage = 0):
         assert type(uuid) is int
         assert type(ammo) is int
@@ -427,14 +444,19 @@ class DefaultWeapon(Weapon):
         self.ammo = ammo
         self.damage = damage
 
-    def uuid(self):
-        return self.uuid
+    @staticmethod
+    def from_json(self):
+        return DefaultWeapon(json['uuid'],
+                             json['ammo'],
+                             json['damage'])
 
-    def ammo(self):
-        return self.ammo
-
-    def damage(self):
-        return self.damage
+    def to_json(self):
+        return {
+            'variant': 'DefaultWeapon',
+            'uuid': self.uuid,
+            'ammo': self.ammo,
+            'damage': self.damage
+        }
 
     def fire(self, orientation = Orientation()):
         assert isinstance(orientation, Orientation)
@@ -456,7 +478,7 @@ class Turret(object):
             self, 
             uuid,
             orientation = Orientation(), 
-            weapon = DefaultWeapon()):
+            weapon = DefaultWeapon(Uuid.generate())):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
         assert isinstance(weapon, Weapon)
@@ -464,21 +486,25 @@ class Turret(object):
         self.orientation = orientation
         self.weapon = weapon
 
-    def uuid(self):
-        return self.uuid
+    @staticmethod
+    def from_json(json):
+        return Turret(json['uuid'],
+                      Orientation.from_json(json['orientation']),
+                      Weapon.from_json(json['weapon']))
 
-    def orientation(self):
-        return self.orientation
-
-    def weapon(self):
-        return self.weapon
+    def to_json(self):
+        return {
+            'uuid': self.uuid,
+            'orientation': self.orientation.to_json(),
+            'weapon': self.weapon.to_json()
+        }
 
 class Tank(object):
     def __init__(
             self, 
             uuid,
             orientation = Orientation(), 
-            turret = Turret(),
+            turret = Turret(Uuid.generate()),
             health = 10):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
@@ -489,20 +515,23 @@ class Tank(object):
         self.turret = turret
         self.health = health
 
-    def uuid(self):
-        return self.uuid
-
-    def orientation(self):
-        return self.orientation
-
-    def turret(self):
-        return self.turret
-
     def is_alive(self):
         return self.health > 0
 
-    def health(self):
-        return self.health
+    @staticmethod
+    def from_json(json):
+        return Tank(json['uuid'],
+                    Orientation.from_json(json['orientation']),
+                    Turret.from_json(json['turret']),
+                    json['health'])
+
+    def to_json(self):
+        return {
+            'uuid': self.uuid,
+            'orientation': self.orientation.to_json(),
+            'turret': self.turret.to_json(),
+            'health': self.health
+        }
 
     def take_damage(self, damage = 0):
         assert type(damage) is int
@@ -524,17 +553,129 @@ class Player(object):
     def __init__(
             self,
             uuid,
-            tank = Tank()):
+            tank = Tank(Uuid.generate())):
         assert type(uuid) is int
         assert isinstance(tank, Tank)
         self.uuid = uuid
         self.tank = tank
 
+    @staticmethod
+    def from_json(json):
+        return Player(json['uuid'],
+                      Tank.from_json(json['tank']))
+
+    def to_json(self):
+        return {
+            'uuid': self.uuid,
+            'tank': self.tank.to_json()
+        }
+
+class Prefab(object):
+    @staticmethod
+    def from_json(json):
+        """
+        TODO: we do not yet have any prefabs
+        """
+        raise IllegalVariantError(json['variant'])
+
+    def to_json():
+        raise NotImplementedError()
+ 
+
+class IllegalVariantError(Exception):
+    def __init__(variant):
+        self._variant = variant
+
+    def variant(self):
+        return self._variant
+
+    def __str__(self):
+        return repr(self._variant)
+
+class Event(object):
+    def __init__():
+        raise NotImplementedError()
+
+    def uuid():
+        raise NotImplementedError()
+
+    @staticmethod
+    def from_json(json):
+        if json.variant == 'PlayerJoinEvent':
+            return PlayerJoinEvent.from_json(json)
+        elif json.variant == 'PlayerFireEvent':
+            return PlayerFireEvent.from_json(json)
+        elif json.variant == 'GameStartEvent':
+            return GameStartEvent.from_json(json)
+        else:
+            raise IllegalVariantError()
+
+    def to_json():
+        raise NotImplementedError()
+
+class PlayerJoinEvent(Event):
+    def __init__(
+            self,
+            uuid,
+            player = Player(Uuid.generate())):
+        assert type(uuid) is int
+        assert isinstance(player, Player)
+        self.uuid = uuid
+        self.player = player
+
+    @staticmethod
+    def from_json(json):
+        return PlayerJoinEvent(json['uuid'],
+                               Player.from_json(json['player']))
+
+    def to_json(self): 
+        return {
+            'variant': 'PlayerJoinEvent',
+            'uuid': self.uuid,
+            'player': self.player
+        }
+
+class PlayerFireEvent(Event):
+    def __init__(
+            self, 
+            uuid,
+            player_uuid = 0):
+        assert type(uuid) is int
+        assert type(player_uuid) is int
+        self.uuid = uuid
+        self.player_uuid = player_uuid
+
+    @staticmethod
+    def from_json(json):
+        return PlayerFireEvent(json['uuid'],
+                               json['player_uuid'])
+
+    def to_json(self):
+        return {
+            'variant': 'PlayerFireEvent',
+            'uuid': self.uuid,
+            'player_uuid': self.player_uuid
+        }
+
+class GameStartEvent(Event):
+    def __init__(
+            self,
+            uuid):
+        assert type(uuid) is int
+        self.uuid = uuid
+
     def uuid(self):
         return self.uuid
-    
-    def tank(self):
-        return self.tank
+
+    @staticmethod
+    def from_json(json):
+        return GameStartEvent(json['uuid'])
+
+    def to_json(self):
+        return {
+            'variant': 'GameStartEvent',
+            'uuid': self.uuid
+        }
 
 class State(object):
     def __init__():
@@ -542,7 +683,7 @@ class State(object):
 
     @staticmethod
     def initial():
-        return LobbyState()
+        return LobbyState(Uuid.generate())
 
     def uuid(self):
         raise NotImplementedError()
@@ -551,6 +692,20 @@ class State(object):
         raise NotImplementedError()
 
     def is_running(self):
+        raise NotImplementedError()
+
+    @staticmethod
+    def from_json(json):
+        if json['variant'] == 'LobbyState':
+            return LobbyState.from_json(json)
+        elif json['variant'] == 'QuitState':
+            return QuitState.from_json(json)
+        elif json['variant'] == 'ActiveMatchState':
+            return ActiveMatchState.from_json(json)
+        else:
+            raise IllegalVariantError(json['variant'])
+
+    def to_json(self):
         raise NotImplementedError()
 
 class LobbyState(State):
@@ -562,19 +717,32 @@ class LobbyState(State):
         assert type(uuid) is int
         assert type(players) is dict
         assert type(is_running) is bool
-        self.uuid = uuid
-        self.players = players
-        self.is_running = is_running
+        self._uuid = uuid
+        self._players = players
+        self._is_running = is_running
 
     def uuid(self):
-        return self.uuid
+        return self._uuid
 
     def next(self, events, time, elapsed_time):
         print time, elapsed_time
         return LobbyState()
 
     def is_running(self):
-        return self.is_running
+        return self._is_running
+
+    @staticmethod
+    def from_json(json):
+        return LobbyState(json['uuid'],
+                          DictionaryUtil.from_json(json['players'],
+                                                   value_type = Player))
+
+    def to_json(self):
+        return {
+            'variant': 'LobbyState',
+            'uuid': self.uuid,
+            'players': DictionaryUtil.to_json(self.players)
+        }
 
 class QuitState(State):
     def __init__(
@@ -592,6 +760,16 @@ class QuitState(State):
     def is_running(self):
         return False
 
+    @staticmethod
+    def from_json(json):
+        return QuitState(json['uuid'])
+
+    def to_json(self):
+        return {
+            'variant': 'QuitState',
+            'uuid': self.uuid
+        }
+
 class ActiveMatchState(State):
     def __init__(
             self,
@@ -607,23 +785,33 @@ class ActiveMatchState(State):
         self.projectiles = projectiles
         self.prefabs = prefabs
 
-    def players(self):
-        return self.players
-
     def player(self, uuid):
         return self.players[uuid]
-
-    def projectiles(self):
-        return self.projectiles
 
     def projectile(self, uuid):
         return self.projectiles[uuid]
 
-    def prefabs(self):
-        return self.prefabs
-
     def prefab(self, uuid):
         return self.prefabs[uuid]
+
+    @staticmethod
+    def from_json(json):
+        return ActiveMatchState(json['uuid'],
+                                DictionaryUtil.from_json(json['players'],
+                                                         value_type = Player),
+                                DictionaryUtil.from_json(json['projectiles'],
+                                                         value_type = Bullet),
+                                DictionaryUtil.from_json(json['prefabs'],
+                                                         value_type = Prefab))
+
+    def to_json(self):
+        return {
+            'variant': 'ActiveMatchState',
+            'uuid': self.uuid,
+            'players': DictionaryUtil.to_json(self.players),
+            'projectiles': DictionaryUtil.to_json(self.projectiles),
+            'prefabs': DictionaryUtil.to_json(self.prefabs)
+        }
 
     def next(self, events, time, delta_time):
         """
@@ -696,4 +884,8 @@ def __main__():
         state_next = state_prev.next([], time_prev, time_next - time_prev)
         state_prev = state_next
         time_prev = time_next
+        print json.dumps(state_next.to_json(),
+                         sort_keys = True,
+                         indent = 4,
+                         separators = (', ', ': '))
 __main__()

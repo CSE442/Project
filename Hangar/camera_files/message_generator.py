@@ -10,10 +10,10 @@ from channel import Channel
 def MessageGenerator(out_channel):
     """
     Create a generator that infinitely iterates the messages from an OutChannel
-
+    
     :param out_channel: The OutChannel to receive messages from
     :return:            The infinite generator of messages from 'out_channel'
     """
     while True:
         yield out_channel.receive()
-
+ 

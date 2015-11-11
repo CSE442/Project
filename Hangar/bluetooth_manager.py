@@ -21,7 +21,6 @@ class BluetoothManager(object):
 
     manager_in_channel, manager_out_channel = channel.Channel()
 
-
     def __init__(self, name = "Default_Name",
             uuid = "fa87c0d0-afac-11de-6b39-0800200c9a66"):
 
@@ -53,8 +52,12 @@ class BluetoothManager(object):
         self.server_sock.listen(1)
         port = self.server_sock.getsockname()[1]
 
-        bluetooth.advertise_service(self.server_sock, self.name, self.uuid)
-
+        bluetooth.advertise_service(self.server_sock,
+                                    self.name,
+                                    service_id = self.uuid,
+                                    service_classes = [self.uuid, bluetooth.SERIAL_PORT_CLASS],
+                                    profiles = [bluetooth.SERIAL_PORT_PROFILE]
+                                    )
 
     def bluetooth_stop(self):
         """
@@ -73,6 +76,7 @@ class BluetoothManager(object):
         is currently trying to connect. To connect tanks, use discover_devices
         with connect_device.
         """
+
         client_sock, client_info = self.server_sock.accept()
         btmac = str(client_info[0])
 
@@ -234,7 +238,7 @@ def commander(sock, receive_channel):
     commander is used to send data to the bluetooth device. Constantly
     reads from receive_channel and will try to send data to the device
 
-    :sock: socket to communicate witht the client
+    :sock: socket to communicate with the client
     :receive_channel: channel to receive commands from
     :returns: none
 
@@ -245,6 +249,6 @@ def commander(sock, receive_channel):
         try:
             sock.send(message)
         except IOError:
-            sock.close
+            sock.close()
             break
     thread.exit()
