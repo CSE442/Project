@@ -881,7 +881,7 @@ def __main__():
     state_next = None
     while state_prev.is_running():
         time_next = time.clock()
-        state_next = state_prev.next([], time_prev, time_next - time_prev)
+        #state_next = state_prev.next({}, time_prev, time_next - time_prev)
         state_prev = state_next
         time_prev = time_next
         print json.dumps(state_next.to_json(),
