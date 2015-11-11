@@ -8,6 +8,7 @@
 import socket
 import thread            as     thread
 import bluetooth_prompt  as     bp
+from   keyboard_input    import *
 from   state             import *
 from   channel           import *
 from   main_unity        import *
@@ -48,9 +49,14 @@ def main():
                                                   , unity_receive_channel
                                                   ))
 
-    # Before making any connections, ensure all devices are paired with the server
+    # Spawn thread for controlling tank w/ keyboard
+    keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
 
-    # Replace this with however the messages from Bluetooth devices should be dealt with.
+    # Spawn the Tracking camera thread
+    tracking_camera_id=thread.start_new_thread(camera.Tracker,
+                                               (tracking_channel_send,))
+
+    # Before making any connections, ensure all devices are paired with the server
     # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
     # Receive bluetooth messages
     try:
@@ -88,8 +94,9 @@ def main():
                                tank = Tank(Uuid.generate(),
                                            btmac = tank))),
                                time_prev, time_next - time_prev)
+            i += 1
 
-        if isinstance(state_next, State):
+        if len(tank) == 0:
             state_prev = state_next
             time_prev = time_next
 
@@ -97,6 +104,7 @@ def main():
             try:
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
+                print bt_data
             except ReceiveException:
                 pass
             '''
@@ -113,13 +121,6 @@ def main():
 
     except KeyboardInterrupt:
         thread.exit()
-
-
-    # Spawn the Tracking camera thread
-    tracking_camera_id=thread.start_new_thread(camera.Tracker, (tracking_channel_send,)) 
-    #example use of incoming message for camera dictionary:
-    #for message in message_generator.MessageGenerator(tracking_channel_recieve):
-    # print message 
 
     # Close the main thread
     thread.exit()
