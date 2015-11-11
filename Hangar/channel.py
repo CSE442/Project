@@ -4,6 +4,7 @@
 #
 
 from Queue import Queue
+from Queue import Empty
 
 class SendException(Exception):
     """
@@ -56,12 +57,12 @@ class ReceiveException(Exception):
 
 class OutChannel(object):
     """
-    OutChannel is a mechanism class intended to be created by the Channel 
+    OutChannel is a mechanism class intended to be created by the Channel
     class.  OutChannel is thread safe.
     """
     def __init__(self, concurrent_queue):
         """
-        Construct a new OutChannel 
+        Construct a new OutChannel
 
         :param concurrent_queue: The queue from which to receive messages
         :return:                 Nothing
@@ -100,8 +101,8 @@ class Channel(object):
         from channel import Channel
 
         in_channel, out_channel = Channel() # create the linked channels
-        in_channel.send("A String Message") 
-        message = out_channel.receive()      
+        in_channel.send("A String Message")
+        message = out_channel.receive()
         print message                       # displays "A String Message"
 
     """
