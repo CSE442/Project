@@ -6,6 +6,7 @@
 #
 
 import socket
+import state
 import thread            as     thread
 import bluetooth_prompt  as     bp
 from   channel           import *
@@ -62,22 +63,40 @@ def main():
     # Temporary work around for selecting a tank for a phone,
     # Only works for equal number of tanks and phones
 
-    device_groups = {}
-    i = 0
+
     for tank in connected_tanks.iterkeys():
-        device_groups[connected_phones[i]] = tank
-        i += 1
+        pass
+
 
     # Replace this with however the messages from Bluetooth devices should be dealt with.
     # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
     # Receive bluetooth messages
-    try:
+    while(True):
+        try:
+            time_prev = time.clock()
+            time_next = None
+            state_prev = State.initial()
+            state_next = None
+
+            while state_prev.is_running():
+
+                time_next = time.clock()
+                state_next = state_prev.next([], time_prev, time_next - time_prev)
+                state_prev = state_next
+                time_prev = time_next
+                print json.dumps(state_next.to_json(),
+                                 sort_keys = True,
+                                 indent = 4,
+                                 separators = (', ', ': '))
+
+                '''
         for message in MessageGenerator(main_bluetooth_receive_channel):
             # this will loop forever with the next message from bluetooth
             for btmac,data in message.iteritems():
                 main_bluetooth_send_channel.send({device_groups[btmac] : data})
-    except KeyboardInterrupt:
-        thread.exit()
+                '''
+        except KeyboardInterrupt:
+            thread.exit()
 
 
     # Close the main thread

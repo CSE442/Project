@@ -46,7 +46,7 @@ class Quaternion(object):
         normal_x = x / normal
         normal_y = y / normal
         normal_z = z / normal
-        return Quaternion(cos(angle/2), 
+        return Quaternion(cos(angle/2),
                           normal_x * sin(angle/2),
                           normal_y * sin(angle/2),
                           normal_z * sin(angle/2))
@@ -55,7 +55,7 @@ class Quaternion(object):
         return (self.a, self.i, self.j, self.k)
 
     def normalize(self):
-        n = sqrt(self.a * self.a + 
+        n = sqrt(self.a * self.a +
                  self.i * self.i +
                  self.j * self.j +
                  self.k * self.k)
@@ -136,8 +136,8 @@ class Matrix3x3(object):
 
     @staticmethod
     def identity():
-        return Matrix3x3(((1, 0, 0), 
-                          (0, 1, 0), 
+        return Matrix3x3(((1, 0, 0),
+                          (0, 1, 0),
                           (0, 0, 1)))
 
     def __getitem__(self, key):
@@ -241,7 +241,7 @@ class Vector3(object):
     def distance(self, other):
         assert type(other) is Vector3
         return sqrt((self.x - other.x) ** 2 +
-                    (self.y - other.y) ** 2 + 
+                    (self.y - other.y) ** 2 +
                     (self.z - other.z) ** 2)
 
     @staticmethod
@@ -253,8 +253,8 @@ class Vector3(object):
 
     def __add__(self, other):
         assert type(other) is Vector3
-        return Vector3(self.x + other.x, 
-                       self.y + other.y, 
+        return Vector3(self.x + other.x,
+                       self.y + other.y,
                        self.z + other.z)
 
     def __sub__(self, other):
@@ -275,8 +275,8 @@ class Vector3(object):
 
 class Orientation(object):
     def __init__(
-            self, 
-            linear = Vector3(), 
+            self,
+            linear = Vector3(),
             angular = Quaternion.unit()):
         assert isinstance(linear, Vector3)
         assert isinstance(angular, Quaternion)
@@ -310,13 +310,13 @@ class Physics(object):
 
     @staticmethod
     def project(
-            orientation = Orientation(), 
-            first_derivative = Orientation(), 
+            orientation = Orientation(),
+            first_derivative = Orientation(),
             second_derivative = Orientation(),
             delta_time = 0.0):
         """
         Progress the specified 'orientation' along the specified 'velocity'
-        by the specified 'delta_time'.  
+        by the specified 'delta_time'.
         """
         assert type(orientation) is Orientation
         assert type(velocity) is Velocity
@@ -403,9 +403,9 @@ class DefaultBullet(Bullet):
         orientation = Phsyics.project(orientation = self.orientation,
                                       first_derivative = self.orientation_delta,
                                       delta_time = delta_time)
-        return DefaultBullet(self.uuid, 
+        return DefaultBullet(self.uuid,
                              self.damage,
-                             orientation, 
+                             orientation,
                              self.orientation_delta)
 
 class Weapon(object):
@@ -475,9 +475,9 @@ class DefaultWeapon(Weapon):
 
 class Turret(object):
     def __init__(
-            self, 
+            self,
             uuid,
-            orientation = Orientation(), 
+            orientation = Orientation(),
             weapon = DefaultWeapon(Uuid.generate())):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
@@ -501,11 +501,13 @@ class Turret(object):
 
 class Tank(object):
     def __init__(
-            self, 
+            self,
             uuid,
-            orientation = Orientation(), 
+            orientation = Orientation(),
             turret = Turret(Uuid.generate()),
-            health = 10):
+            health = 10,
+            tank_btmac = "",
+            turret_btmac = ""):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
         assert isinstance(turret, Turret)
@@ -514,6 +516,7 @@ class Tank(object):
         self.orientation = orientation
         self.turret = turret
         self.health = health
+        self.btmac = btmac
 
     def is_alive(self):
         return self.health > 0
@@ -523,14 +526,16 @@ class Tank(object):
         return Tank(json['uuid'],
                     Orientation.from_json(json['orientation']),
                     Turret.from_json(json['turret']),
-                    json['health'])
+                    json['health'],
+                    json['btmac'])
 
     def to_json(self):
         return {
             'uuid': self.uuid,
             'orientation': self.orientation.to_json(),
             'turret': self.turret.to_json(),
-            'health': self.health
+            'health': self.health,
+            'btmac': self.btmac
         }
 
     def take_damage(self, damage = 0):
@@ -553,21 +558,25 @@ class Player(object):
     def __init__(
             self,
             uuid,
-            tank = Tank(Uuid.generate())):
+            tank = Tank(Uuid.generate()),
+            btmac = ""):
         assert type(uuid) is int
         assert isinstance(tank, Tank)
         self.uuid = uuid
+        self.btmac = btmac
         self.tank = tank
 
     @staticmethod
     def from_json(json):
         return Player(json['uuid'],
-                      Tank.from_json(json['tank']))
+                      Tank.from_json(json['tank']),
+                      json['btmac'])
 
     def to_json(self):
         return {
             'uuid': self.uuid,
-            'tank': self.tank.to_json()
+            'tank': self.tank.to_json(),
+            'btmac': self.btmac
         }
 
 class Prefab(object):
@@ -580,7 +589,7 @@ class Prefab(object):
 
     def to_json():
         raise NotImplementedError()
- 
+
 
 class IllegalVariantError(Exception):
     def __init__(variant):
@@ -628,7 +637,7 @@ class PlayerJoinEvent(Event):
         return PlayerJoinEvent(json['uuid'],
                                Player.from_json(json['player']))
 
-    def to_json(self): 
+    def to_json(self):
         return {
             'variant': 'PlayerJoinEvent',
             'uuid': self.uuid,
@@ -637,7 +646,7 @@ class PlayerJoinEvent(Event):
 
 class PlayerFireEvent(Event):
     def __init__(
-            self, 
+            self,
             uuid,
             player_uuid = 0):
         assert type(uuid) is int
@@ -710,7 +719,7 @@ class State(object):
 
 class LobbyState(State):
     def __init__(
-            self, 
+            self,
             uuid,
             players = {},
             is_running = True):
@@ -724,10 +733,12 @@ class LobbyState(State):
     def uuid(self):
         return self._uuid
 
-    def next(self, events, time, elapsed_time):
-        print time, elapsed_time
-        return LobbyState()
-
+    def next(self, event, time, elapsed_time):
+        if isinstance(event, PlayerJoinEvent):
+            self._players.update({event.player.uuid, event.player})
+            return LobbyState(self.uuid, self._players)
+        else:
+            raise NotImplementedError()
     def is_running(self):
         return self._is_running
 
