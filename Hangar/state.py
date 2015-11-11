@@ -622,6 +622,54 @@ class Event(object):
     def to_json():
         raise NotImplementedError()
 
+class DirectionalKeyPushEvent(Event):
+    def __init__(
+            self,
+            uuid,
+            keycode):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._keycode = keycode
+
+    @staticmethod
+    def from_json(json):
+        return DirectionalKeyPushEvent(json['uuid'],
+                                       json['keycode'])
+
+    def uuid(self):
+        return self._uuid
+
+    def keycode(self):
+        return self._keycode
+
+    def to_json(self):
+        return {
+            'variant': 'DirectionalKeyPushEvent',
+            'uuid': self._uuid,
+            'keycode': self._keycode
+        }
+
+class FireKeyPushEvent(Event):
+    def __init__(
+            self,
+            uuid):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._keycode = keycode
+
+    @staticmethod
+    def from_json(json):
+        return FireKeyPushEvent(json['uuid'])
+
+    def uuid(self):
+        return self._uuid
+
+    def to_json(self):
+        return {
+            'variant': 'FireKeyPushEvent',
+            'uuid': self._uuid
+        }
+
 class PlayerJoinEvent(Event):
     def __init__(
             self,
@@ -892,7 +940,7 @@ def __main__():
     state_next = None
     while state_prev.is_running():
         time_next = time.clock()
-        state_next = state_prev.next([], time_prev, time_next - time_prev)
+        #state_next = state_prev.next({}, time_prev, time_next - time_prev)
         state_prev = state_next
         time_prev = time_next
         print json.dumps(state_next.to_json(),
