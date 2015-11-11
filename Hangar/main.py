@@ -109,7 +109,7 @@ def main():
             state_prev = state_next
             time_prev = time_next
             '''
-            if type(state_next) is State:
+            if isinstance(state_next, State):
                 print json.dumps(state_next.to_json(),
                                  sort_keys = True,
                                  indent = 4,
