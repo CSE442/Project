@@ -622,6 +622,54 @@ class Event(object):
     def to_json():
         raise NotImplementedError()
 
+class DirectionalKeyPushEvent(Event):
+    def __init__(
+            self,
+            uuid,
+            keycode):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._keycode = keycode
+
+    @staticmethod
+    def from_json(json):
+        return DirectionalKeyPushEvent(json['uuid'],
+                                       json['keycode'])
+
+    def uuid(self):
+        return self._uuid
+
+    def keycode(self):
+        return self._keycode
+
+    def to_json(self):
+        return {
+            'variant': 'DirectionalKeyPushEvent',
+            'uuid': self._uuid,
+            'keycode': self._keycode
+        }
+
+class FireKeyPushEvent(Event):
+    def __init__(
+            self,
+            uuid):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._keycode = keycode
+
+    @staticmethod
+    def from_json(json):
+        return FireKeyPushEvent(json['uuid'])
+
+    def uuid(self):
+        return self._uuid
+
+    def to_json(self):
+        return {
+            'variant': 'FireKeyPushEvent',
+            'uuid': self._uuid
+        }
+
 class PlayerJoinEvent(Event):
     def __init__(
             self,
