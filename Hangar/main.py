@@ -12,12 +12,14 @@ from   main_unity        import *
 from   main_bluetooth    import *
 from   message_generator import MessageGenerator
 from   BluetoothManager  import BluetoothManager
+import colorOptimizatiom_2 as camera
 
 def main():
     # Create the communication channels between threads
     bluetooth_in_channel,       main_bluetooth_out_channel = Channel()
     main_bluetooth_in_channel,  bluetooth_out_channel      = Channel()
     main_unity_in_channel,      unity_out_channel          = Channel()
+    tracking_channel_send, tracking_channel_recieve        = Channel()
 
     # Create the bluetooth manager class
     bluetooth_manager = BluetoothManager()
@@ -48,6 +50,12 @@ def main():
     for message in MessageGenerator(main_bluetooth_out_channel):
         # this will loop forever with the next message from bluetooth
         print message
+
+    # Spawn the Tracking camera thread
+    tracking_camera_id=thread.start_new_thread(camera.Tracker, (tracking_channel_send,)) 
+    #example use of incoming message for camera dictionary:
+    #for message in message_generator.MessageGenerator(tracking_channel_recieve):
+    # print message 
 
     # Close the main thread
     thread.exit()
