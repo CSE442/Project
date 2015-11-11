@@ -12,25 +12,15 @@ from   channel           import *
 from   main_unity        import *
 from   main_bluetooth    import *
 from   message_generator import MessageGenerator
-<<<<<<< HEAD
-from   BluetoothManager  import BluetoothManager
-import colorOptimizatiom_2 as camera
-
-def main():
-    # Create the communication channels between threads
-    bluetooth_in_channel,       main_bluetooth_out_channel = Channel()
-    main_bluetooth_in_channel,  bluetooth_out_channel      = Channel()
-    main_unity_in_channel,      unity_out_channel          = Channel()
-    tracking_channel_send, tracking_channel_recieve        = Channel()
-=======
 from   bluetooth_manager import BluetoothManager
+import colorOptimizatiom_2 as camera
 
 def main():
     # Create the communication channels between threads
     bluetooth_send_channel,       main_bluetooth_receive_channel = Channel()
     main_bluetooth_send_channel,  bluetooth_receive_channel      = Channel()
     main_unity_send_channel,      unity_receive_channel          = Channel()
->>>>>>> c17c0a1bd7060f2508839c63f4b6cae0af06b06a
+    tracking_channel_send, tracking_channel_recieve              = Channel()
 
     # Create the bluetooth manager class
     bluetooth_manager = BluetoothManager()
