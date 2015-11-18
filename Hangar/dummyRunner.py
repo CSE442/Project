@@ -5,7 +5,7 @@
 # refrence: Code sourced from Aaron Preston
 # purpose: tests colorOptimization_2.py
 
-import colorOptimizatiom_2 as camera
+import colorOptimization_X as camera
 import thread
 import channel
 import message_generator
