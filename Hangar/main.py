@@ -65,7 +65,6 @@ def main():
         time_next = None
         state_prev = State.initial()
         state_next = None
-
         bluetooth_manager.bluetooth_start()
         # Go through a prompt for connected the
         # tanks and get a dictionary of the tanks
@@ -114,12 +113,12 @@ def main():
             state_next = state_prev.next([], time_prev, time_next - time_prev)
             state_prev = state_next
             time_prev = time_next
+            '''
             if isinstance(state_next, State):
                 print json.dumps(state_next.to_json(),
                                  sort_keys = True,
                                  indent = 4,
                                  separators = (', ', ': '))
-                '''
 
     except KeyboardInterrupt:
         thread.exit()
