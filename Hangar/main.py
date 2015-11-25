@@ -15,14 +15,15 @@ from   main_unity        import *
 from   main_bluetooth    import *
 from   message_generator import MessageGenerator
 from   bluetooth_manager import BluetoothManager
-import colorOptimizatiom_2 as camera
+#######import colorOptimizatiom_2 as camera
+import camera_tracking_class
 
 def main():
     # Create the communication channels between threads
     bluetooth_send_channel,       main_bluetooth_receive_channel = Channel()
     main_bluetooth_send_channel,  bluetooth_receive_channel      = Channel()
     main_unity_send_channel,      unity_receive_channel          = Channel()
-    tracking_channel_send, tracking_channel_receive              = Channel()
+   ######## tracking_channel_send, tracking_channel_receive              = Channel()
 
     # Create the bluetooth manager class
     bluetooth_manager = BluetoothManager()
@@ -49,9 +50,12 @@ def main():
                                                   , unity_receive_channel
                                                   ))
 
-
+    tracker=camera_tracking_class.camera_thread()
+    tracker.start()
+    print "I MADE IT"
+    print tracker.getTrackingInformation()
     # Spawn the Tracking camera thread
-    tracking_camera_id=thread.start_new_thread(camera.Tracker, (tracking_channel_send,)) 
+   ######## tracking_camera_id=thread.start_new_thread(camera.Tracker, (tracking_channel_send,)) 
     #key values 
     #'Red To Green':orientation from x axis for red to green vector; currently only available orienatation
     #colorX: The color and requested coordianate, ex: greenX :green x value 
@@ -67,7 +71,7 @@ def main():
     #         pass
 
     # Spawn thread for controlling tank w/ keyboard
-    keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
+   ######## keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
 
     # Before making any connections, ensure all devices are paired with the server
     # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
@@ -95,6 +99,9 @@ def main():
 
         time_next = time.clock()
 
+        #####DELTE ME YOU FOOL
+        print "I MADE IT AGAIN"
+        print tracker.getTrackingInformation()
 
         # Add all phones and tanks to the state
         i = 0
