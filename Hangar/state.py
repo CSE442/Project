@@ -610,17 +610,179 @@ class Event(object):
 
     @staticmethod
     def from_json(json):
-        if json.variant == 'PlayerJoinEvent':
+        if json['variant'] == 'PlayerJoinEvent':
             return PlayerJoinEvent.from_json(json)
-        elif json.variant == 'PlayerFireEvent':
+        elif json['variant'] == 'PlayerFireEvent':
             return PlayerFireEvent.from_json(json)
-        elif json.variant == 'GameStartEvent':
+        elif json['variant'] == 'GameStartEvent':
             return GameStartEvent.from_json(json)
         else:
             raise IllegalVariantError()
 
     def to_json():
         raise NotImplementedError()
+
+class BluetoothEvent(Event):
+    def __init__():
+        raise NotImplementedError()
+
+    def uuid():
+        raise NotImplementedError()
+
+    @staticmethod
+    def from_json(json, btmac):
+        if json['variant'] == 'BluetoothTankSelectEvent':
+            return BluetoothSelectTankEvent.from_json(json, btmac)
+        elif json['variant'] == 'BluetoothFireEvent':
+            return BluetoothFireEvent.from_json(json, btmac)
+        elif json['variant'] == 'BluetoothTankMoveEvent':
+            return BluetoothTankMoveEvent.from_json(json, btmac)
+        elif json['variant'] == 'BluetoothTurretMoveEvent':
+            return BluetoothTurretMoveEvent.from_json(json, btmac)
+        else:
+            raise IllegalVariantError()
+
+    def to_json():
+        raise NotImplementedError()
+
+class BluetoothSelectTankEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac,
+            tank_btmac):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._tank_btmac = tank_btmac
+        self._phone_btmac = phone_btmac
+
+    def uuid(self):
+        return self._uuid
+
+    def phone_btmac(self):
+        return self._phone_btmac
+
+    def tank_btmac(self):
+        return self._tank_btmac
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+        return BluetoothSelectTankEvent(
+                Uuid.generate(),
+                phone_btmac,
+                json['tank_btmac'])
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothSelectTankEvent',
+                'tank_btmac': self._tank_btmac
+        }
+
+class BluetoothFireEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._phone_btmac = phone_btmac
+
+    def uuid(self):
+        return self._uuid
+
+    def phone_btmac(self):
+        return self._phone_btmac
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+        return BluetoothFireEvent(
+                Uuid.generate(),
+                phone_btmac)
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothFireEvent'
+        }
+
+class BluetoothTankMoveEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac,
+            magnitude,
+            angle):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._phone_btmac = phone_btmac
+        self._magnitude = magnitude
+        self._angle = angle
+
+    def uuid(self):
+        return self._uuid
+
+    def phone_btmac(self):
+        return self._phone_btmac
+
+    def magnitude(self):
+        return self._magnitude
+
+    def angle(self):
+        return self._angle
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+            return BluetoothTankMoveEvent(
+                    Uuid.generate(),
+                    phone_btmac,
+                    json['magnitude'],
+                    json['angle'])
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothTankMoveEvent',
+                'magnitude': self._magnitude,
+                'angle': self._angle
+        }
+
+class BluetoothTurretMoveEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac,
+            magnitude,
+            angle):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._phone_btmac = phone_btmac
+        self._magnitude = magnitude
+        self._angle = angle
+
+    def uuid(self):
+        return self._uuid
+
+    def phone_btmac(self):
+        return self._phone_btmac
+
+    def magnitude(self):
+        return self._magnitude
+
+    def angle(self):
+        return self._angle
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+            return BluetoothTurretMoveEvent(
+                    Uuid.generate(),
+                    phone_btmac,
+                    json['magnitude'],
+                    json['angle'])
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothTurretMoveEvent',
+                'magnitude': self._magnitude,
+                'angle': self._angle
+        }
 
 class DirectionalKeyPushEvent(Event):
     def __init__(
@@ -677,8 +839,14 @@ class PlayerJoinEvent(Event):
             player = Player(Uuid.generate())):
         assert type(uuid) is int
         assert isinstance(player, Player)
-        self.uuid = uuid
-        self.player = player
+        self._uuid = uuid
+        self._player = player
+
+    def uuid(self):
+        return self._uuid
+
+    def player(self):
+        return self._player
 
     @staticmethod
     def from_json(json):
@@ -688,8 +856,8 @@ class PlayerJoinEvent(Event):
     def to_json(self):
         return {
             'variant': 'PlayerJoinEvent',
-            'uuid': self.uuid,
-            'player': self.player
+            'uuid': self._uuid,
+            'player': self._player
         }
 
 class PlayerFireEvent(Event):
@@ -699,8 +867,8 @@ class PlayerFireEvent(Event):
             player_uuid = 0):
         assert type(uuid) is int
         assert type(player_uuid) is int
-        self.uuid = uuid
-        self.player_uuid = player_uuid
+        self._uuid = uuid
+        self._player_uuid = player_uuid
 
     @staticmethod
     def from_json(json):
@@ -710,8 +878,8 @@ class PlayerFireEvent(Event):
     def to_json(self):
         return {
             'variant': 'PlayerFireEvent',
-            'uuid': self.uuid,
-            'player_uuid': self.player_uuid
+            'uuid': self._uuid,
+            'player_uuid': self._player_uuid
         }
 
 class GameStartEvent(Event):
@@ -719,10 +887,10 @@ class GameStartEvent(Event):
             self,
             uuid):
         assert type(uuid) is int
-        self.uuid = uuid
+        self._uuid = uuid
 
     def uuid(self):
-        return self.uuid
+        return self._uuid
 
     @staticmethod
     def from_json(json):
@@ -731,7 +899,7 @@ class GameStartEvent(Event):
     def to_json(self):
         return {
             'variant': 'GameStartEvent',
-            'uuid': self.uuid
+            'uuid': self._uuid
         }
 
 class State(object):
@@ -808,10 +976,10 @@ class QuitState(State):
             self,
             uuid):
         assert type(uuid) is int
-        self.uuid = uuid
+        self._uuid = uuid
 
     def uuid(self):
-        return self.uuid
+        return self._uuid
 
     def next(self, events, time, elapsed_time):
         return QuitState()
@@ -826,7 +994,7 @@ class QuitState(State):
     def to_json(self):
         return {
             'variant': 'QuitState',
-            'uuid': self.uuid
+            'uuid': self._uuid
         }
 
 class ActiveMatchState(State):
@@ -839,19 +1007,19 @@ class ActiveMatchState(State):
         assert type(uuid) is int
         for player in players:
             assert type(player) is Player
-        self.uuid = uuid
-        self.players = players
-        self.projectiles = projectiles
-        self.prefabs = prefabs
+        self._uuid = uuid
+        self._players = players
+        self._projectiles = projectiles
+        self._prefabs = prefabs
 
     def player(self, uuid):
-        return self.players[uuid]
+        return self._players[uuid]
 
     def projectile(self, uuid):
-        return self.projectiles[uuid]
+        return self._projectiles[uuid]
 
     def prefab(self, uuid):
-        return self.prefabs[uuid]
+        return self._prefabs[uuid]
 
     @staticmethod
     def from_json(json):
@@ -866,7 +1034,7 @@ class ActiveMatchState(State):
     def to_json(self):
         return {
             'variant': 'ActiveMatchState',
-            'uuid': self.uuid,
+            'uuid': self._uuid,
             'players': DictionaryUtil.to_json(self.players),
             'projectiles': DictionaryUtil.to_json(self.projectiles),
             'prefabs': DictionaryUtil.to_json(self.prefabs)
