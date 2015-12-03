@@ -43,14 +43,14 @@ class Quaternion(object):
 
     @staticmethod
     def from_axis_angle(x = 0.0, y = 0.0, z = 0.0, angle = 0.0):
-        normal = sqrt(x**2 + y**2 + z**2)
+        normal = math.sqrt(x**2 + y**2 + z**2)
         normal_x = x / normal
         normal_y = y / normal
         normal_z = z / normal
-        return Quaternion(cos(angle/2),
-                          normal_x * sin(angle/2),
-                          normal_y * sin(angle/2),
-                          normal_z * sin(angle/2))
+        return Quaternion(math.cos(angle/2),
+                          normal_x * math.sin(angle/2),
+                          normal_y * math.sin(angle/2),
+                          normal_z * math.sin(angle/2))
 
     def tuple(self):
         return (self.a, self.i, self.j, self.k)
@@ -281,18 +281,24 @@ class Orientation(object):
             angular = Quaternion.unit()):
         assert isinstance(linear, Vector3)
         assert isinstance(angular, Quaternion)
-        self.linear = linear
-        self.angular = angular
+        self._linear = linear
+        self._angular = angular
+
+    def linear(self):
+        return self._linear
+
+    def angular(self):
+        return self._angular
 
     @staticmethod
     def from_json(json):
-        return Orientation(Vector3.from_json(json.linear),
-                           Quaternion.from_json(json.angular))
+        return Orientation(Vector3.from_json(json._linear),
+                           Quaternion.from_json(json._angular))
 
     def to_json(self):
         return {
-            'linear': self.linear.to_json(),
-            'angular': self.angular.to_json()
+            'linear': self._linear.to_json(),
+            'angular': self._angular.to_json()
         }
 
 class Physics(object):
@@ -515,7 +521,7 @@ class Tank(object):
             turret = Turret(Uuid.generate()),
             health = 10,
             btmac = "",
-            motor_speeds = 0
+            motorspeeds = 0
             ):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
@@ -526,7 +532,7 @@ class Tank(object):
         self._turret = turret
         self._health = health
         self._btmac = btmac
-        self._motor_speeds = motor_speeds
+        self._motorspeeds = motorspeeds
 
     def uuid(self):
         return self._uuid
@@ -546,8 +552,8 @@ class Tank(object):
     def orientation(self):
         return self._orientation
 
-    def motor_speeds(self):
-        return self._motor_speeds
+    def motorspeeds(self):
+        return self._motorspeeds
 
     @staticmethod
     def from_json(json):
@@ -556,7 +562,7 @@ class Tank(object):
                     Turret.from_json(json['turret']),
                     json['health'],
                     json['btmac'],
-                    json['motor_speeds'])
+                    json['motorspeeds'])
 
     def to_json(self):
         return {
@@ -565,7 +571,7 @@ class Tank(object):
             'turret': self._turret.to_json(),
             'health': self._health,
             'btmac': self._btmac,
-            'motor_speeds': self._motor_speeds
+            'motorspeeds': self._motorspeeds
         }
 
     def take_damage(self, damage = 0):
@@ -748,11 +754,11 @@ class BluetoothTankMoveEvent(BluetoothEvent):
             self,
             uuid,
             phone_btmac,
-            motor_speeds):
+            motorspeeds):
         assert type(uuid) is int
         self._uuid = uuid
         self._phone_btmac = phone_btmac
-        self._motor_speeds = motor_speeds
+        self._motorspeeds = motorspeeds
 
     def uuid(self):
         return self._uuid
@@ -760,21 +766,21 @@ class BluetoothTankMoveEvent(BluetoothEvent):
     def phone_btmac(self):
         return self._phone_btmac
 
-    def motor_speeds(self):
-        return self._motor_speeds
+    def motorspeeds(self):
+        return self._motorspeeds
 
     @staticmethod
     def from_json(json, phone_btmac):
             return BluetoothTankMoveEvent(
                     Uuid.generate(),
                     phone_btmac,
-                    json['motor_speeds'])
+                    json['motorspeeds'])
 
     def to_json(self):
         return {
                 'variant': 'BluetoothTankMoveEvent',
                 'uuid': self._uuid,
-                'motor_speeds': self._motor_speeds
+                'motorspeeds': self._motorspeeds
         }
 
 class BluetoothTurretMoveEvent(BluetoothEvent):
@@ -1081,6 +1087,14 @@ class ActiveMatchState(State):
         self._players = players
         self._projectiles = projectiles
         self._prefabs = prefabs
+######### FIX FOR FINAL, SIMPLY FOR TESTING
+        self._is_running = True
+
+    def is_running(self):
+        return self._is_running
+
+    def uuid(self):
+        return self._uuid
 
     def player(self, uuid):
         return self._players[uuid]
@@ -1095,8 +1109,8 @@ class ActiveMatchState(State):
         bluetooth_data = {}
         for player_uuid,player in self._players.iteritems():
             tank = player.tank()
-            if True or tank.motor_speeds() != 0:
-                bluetooth_data[tank.btmac()] = tank.motor_speeds()
+            if True or tank.motorspeeds() != 0:
+                bluetooth_data[tank.btmac()] = tank.motorspeeds()
                 new_player = Player(
                             uuid = player.uuid(),
                             tank = Tank(
@@ -1105,7 +1119,7 @@ class ActiveMatchState(State):
                                 turret = tank.turret(),
                                 health = tank.health(),
                                 btmac = tank.btmac(),
-                                motor_speeds = 0
+                                motorspeeds = 0
                                 ),
                            btmac = player.btmac()
                            )
@@ -1143,28 +1157,28 @@ class ActiveMatchState(State):
         perform those operations
         """
         print time, delta_time
-        projectiles = advance_projectiles(self.projectiles(), delta_time)
+        projectiles = ActiveMatchState.advance_projectiles(self._projectiles, delta_time)
         tanks = {}
-        for player_uuid, player in self.players():
+        for player_uuid, player in self._players.iteritems():
             tank = player.tank()
             tanks[tank.uuid()] = tank
-        collisions = tank_projectile_collisions(tanks, projectiles)
+        collisions = ActiveMatchState.tank_projectile_collisions(tanks, projectiles)
         damaged_tanks = {}
-        for tank_uuid, tank in tanks:
-            if tank_uuid in collisions:
+        for tank_uuid, tank in tanks.iteritems():
+            if tank_uuid in collisions.iterkeys():
                 projectile_uuid = collisions[tank_uuid]
                 projectile = projeciles[projectile_uuid]
                 damaged_tanks[tank_uuid] = tank.take_damage(projectile.damage)
             else:
                 damaged_tanks[tank_uuid] = tank
         remaining_players = {}
-        for player_uuid, player in self.players():
+        for player_uuid, player in self._players.iteritems():
             player_tank = damaged_tanks[player.tank().uuid()]
             remaining_players[player_uuid] = Player(uuid = player.uuid(),
                                                     tank = player_tank,
                                                     btmac = player.btmac())
         remaining_projectiles = {}
-        for projectile_uuid, projectile in projectiles:
+        for projectile_uuid, projectile in projectiles.iteritems():
             if projectile_uuid not in collisions.values():
                 remaining_projectiles[projectile_uuid] = projectile
 
@@ -1186,7 +1200,7 @@ class ActiveMatchState(State):
                                         ),
                                     health = tank.health(),
                                     btmac = tank.btmac(),
-                                    motor_speeds = tank.motor_speeds()
+                                    motorspeeds = tank.motorspeeds()
                                     ),
                                btmac = player.btmac()
                                )
@@ -1204,7 +1218,7 @@ class ActiveMatchState(State):
                                     turret = turret,
                                     health = tank.health(),
                                     btmac = tank.btmac(),
-                                    motor_speeds = event.motor_speeds()
+                                    motorspeeds = event.motorspeeds()
                                     ),
                                btmac = player.btmac()
                                )
@@ -1239,7 +1253,7 @@ class ActiveMatchState(State):
                                         ),
                                     health = tank.health(),
                                     btmac = tank.btmac(),
-                                    motor_speeds = tank.motor_speeds()
+                                    motorspeeds = tank.motorspeeds()
                                     ),
                                btmac = player.btmac()
                                )
@@ -1248,14 +1262,14 @@ class ActiveMatchState(State):
         return ActiveMatchState(uuid = self.uuid(),
                                 players = remaining_players,
                                 projectiles = remaining_projectiles,
-                                prefabs = self.prefabs())
+                                prefabs = self._prefabs)
 
     @staticmethod
     def advance_projectiles(projectiles, delta_time):
         assert type(projectiles) is dict
         assert type(delta_time) is float
         result = {}
-        for uuid, projectile in projectiles:
+        for uuid, projectile in projectiles.iteritems():
             assert type(uuid) is int
             assert isinstance(projectile, Bullet)
             result[uuid] = projectile.advance(delta_time)
@@ -1264,8 +1278,8 @@ class ActiveMatchState(State):
     @staticmethod
     def tank_projectile_collisions(tanks, projectiles):
         collisions = {}
-        for tank_uuid, tank in tanks:
-            for projectile_uuid, projectile in projectiles:
+        for tank_uuid, tank in tanks.iteritems():
+            for projectile_uuid, projectile in projectiles.iteritems():
                 tank_position = tank.orientation().linear()
                 projectile_position = projectile.orientation().linear()
                 collision_radius = tank.collision_radius() + \

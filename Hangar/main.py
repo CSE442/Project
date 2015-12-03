@@ -5,6 +5,7 @@
 # purpose: Provide an entry point for the program
 #
 
+import sys
 import socket
 import struct
 import thread            as     thread
@@ -96,23 +97,43 @@ def main():
             time_prev = time_next
 
         # TESTING
+        time_next = time.clock()
         state_next = state_prev.next(
                 GameStartEvent(Uuid.generate()),
                 time_prev,
                 time_next - time_prev)
+        state_prev = state_next
+        time_prev = time_next
 
         while state_prev.is_running():
             try:
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
                 for btmac,data in bt_data.iteritems():
-                    time_next = time.clock()
-                    state_next = state_prev.next(
-                            BluetoothEvent.from_json(data, btmac),
-                            time_prev,
-                            time_next - time_prev)
-                    state_prev = state_next
-                    time_prev = time_next
+                    print {btmac: data}
+                    jsons = []
+                    json_single = ""
+                    for i in range(len(data)):
+                        if data[i] == '{':
+                            json_single += '{'
+                        elif data[i] == '}':
+                            json_single += '}'
+                            jsons.append(json_single)
+                            json_single = ""
+                        else:
+                            json_single+= data[i]
+
+                    print jsons
+
+                    for string in jsons:
+                        json_data = json.loads(string)
+                        time_next = time.clock()
+                        state_next = state_prev.next(
+                                BluetoothEvent.from_json(json_data, btmac),
+                                time_prev,
+                                time_next - time_prev)
+                        state_prev = state_next
+                        time_prev = time_next
 
             except ReceiveException:
                 pass
@@ -131,10 +152,11 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
                 main_unity_send_channel.send(current_json)
-                print current_json
-                print bluetooth_data
+                #print current_json
+                #print bluetooth_data
 
     except KeyboardInterrupt:
+        bluetooth_manager.bluetooth_stop()
         thread.exit()
 
     # Close the main thread

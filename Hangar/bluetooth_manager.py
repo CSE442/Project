@@ -65,6 +65,7 @@ class BluetoothManager(object):
         Will turn it off if linux.
         """
         self.connection_close()
+        bluetooth.stop_advertising(self.server_sock)
         self.server_sock.close()
         if os.name == "posix":
             subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
