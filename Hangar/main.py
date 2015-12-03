@@ -42,13 +42,8 @@ def main():
                                                           bluetooth_manager,))
 
     # Spawn the Visualizer Thread
-    unity_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    unity_socket.bind((VISUALIZER_ADDRESS, VISUALIZER_PORT))
-    unity_socket.listen(1)
     unity_receive_thread_id = thread.start_new_thread(main_unity,
-                                                  ( unity_socket
-                                                  , unity_receive_channel
-                                                  ))
+                                                  (unity_receive_channel,))
 
     # Spawn thread for controlling tank w/ keyboard
 #    keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
@@ -96,7 +91,7 @@ def main():
                                time_prev, time_next - time_prev)
             i += 1
 
-        if len(tank) == 0:
+        if len(connected_tanks) != 0:
             state_prev = state_next
             time_prev = time_next
 
@@ -111,12 +106,19 @@ def main():
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
                 for btmac,data in bt_data.iteritems():
+                    time_next = time.clock()
                     state_next = state_prev.next(
                             BluetoothEvent.from_json(data, btmac),
                             time_prev,
                             time_next - time_prev)
-            except:
+                    state_prev = state_next
+                    time_prev = time_next
+
+            except ReceiveException:
                 pass
+
+            bluetooth_data, state_next = state_next.bluetooth_info()
+
             '''
             time_next = time.clock()
             state_next = state_prev.next([], time_prev, time_next - time_prev)
@@ -124,10 +126,13 @@ def main():
             time_prev = time_next
             '''
             if isinstance(state_next, State):
-                print json.dumps(state_next.to_json(),
+                current_json =  json.dumps(state_next.to_json(),
                                  sort_keys = True,
                                  indent = 4,
                                  separators = (', ', ': '))
+                main_unity_send_channel.send(current_json)
+                print current_json
+                print bluetooth_data
 
     except KeyboardInterrupt:
         thread.exit()

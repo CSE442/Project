@@ -8,14 +8,17 @@
 #
 # Global Configuration
 #
-VISUALIZER_ADDRESS = "127.0.0.1"
-VISUALIZER_PORT    = 1337
+import socket
+from message_generator import MessageGenerator
 
-def main_unity(socket, unity_out_channel):
-    connection, address = socket.accept()
-    print "Received Visualizer Connection on Port", address
-    for message in generate_messages(unity_out_channel):
-        message_data = message
-        connection.send(message_data)
+VISUALIZER_ADDRESS = "127.0.0.1"
+VISUALIZER_PORT    = 33333
+
+def main_unity(unity_out_channel):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
+    print "Received Visualizer Connection on Port", VISUALIZER_PORT
+    for message in MessageGenerator(unity_out_channel):
+        s.send(message)
     thread.exit()
- 
+

@@ -546,6 +546,9 @@ class Tank(object):
     def orientation(self):
         return self._orientation
 
+    def motor_speeds(self):
+        return self._motor_speeds
+
     @staticmethod
     def from_json(json):
         return Tank(json['uuid'],
@@ -1088,8 +1091,31 @@ class ActiveMatchState(State):
     def prefab(self, uuid):
         return self._prefabs[uuid]
 
-    def bluetooth_info(self, uuid):
-        pass
+    def bluetooth_info(self):
+        bluetooth_data = {}
+        for player_uuid,player in self._players.iteritems():
+            tank = player.tank()
+            if True or tank.motor_speeds() != 0:
+                bluetooth_data[tank.btmac()] = tank.motor_speeds()
+                new_player = Player(
+                            uuid = player.uuid(),
+                            tank = Tank(
+                                tank.uuid(),
+                                orientation = tank.orientation(),
+                                turret = tank.turret(),
+                                health = tank.health(),
+                                btmac = tank.btmac(),
+                                motor_speeds = 0
+                                ),
+                           btmac = player.btmac()
+                           )
+                self._players[player_uuid] = new_player
+        return bluetooth_data, ActiveMatchState(
+                                        self._uuid,
+                                        self._players,
+                                        self._projectiles,
+                                        self._prefabs
+                                        )
 
     @staticmethod
     def from_json(json):
@@ -1151,7 +1177,7 @@ class ActiveMatchState(State):
                     new_player = Player(
                                 uuid = player.uuid(),
                                 tank = Tank(
-                                    player.tank().uuid(),
+                                    uuid = tank.uuid(),
                                     orientation = tank.orientation(),
                                     turret = Turret(
                                         turret.uuid(),
@@ -1173,7 +1199,7 @@ class ActiveMatchState(State):
                     new_player = Player(
                                 uuid = player.uuid(),
                                 tank = Tank(
-                                    player.tank().uuid(),
+                                    uuid = tank.uuid(),
                                     orientation = tank.orientation(),
                                     turret = turret,
                                     health = tank.health(),
@@ -1191,31 +1217,33 @@ class ActiveMatchState(State):
                     if remaining_players.has_key(player_uuid):
                         # a whole lot of shit just to change the orientation of
                         # the turret, probably a bug or two in here
-                        remaining_players[player_uuid] = Player(
+                        tank = player.tank()
+                        turret = tank.turret()
+                        orientation = Orientation(
+                                            linear = turret.orientation().linear(),
+                                            angular = Quaternion.from_axis_angle(
+                                                0.0,
+                                                1.0,
+                                                0.0,
+                                                -event.angle()*math.pi / 180.0)
+                                                )
+                        new_player = Player(
                                 uuid = player.uuid(),
                                 tank = Tank(
-                                    player.tank().uuid(),
-                                    orientation = player.tank().orientation(),
+                                    tank.uuid(),
+                                    orientation = tank.orientation(),
                                     turret = Turret(
-                                        player.tank().turret().uuid(),
-                                        orientation = Orientation(
-                                            linear = \
-                                    player.tank().turret().orientation().linear(),
-                                    angular = \
-                                    Quaternion.from_axis_angle(
-                                            0.0,
-                                            1.0,
-                                            0.0,
-                                            -event.angle()*math.pi / 180.0)
-                                            ),
-                                        weapon = player.tank().turret().weapon()
+                                        uuid = turret.uuid(),
+                                        orientation = orientation,
+                                        weapon = turret.weapon()
                                         ),
-                                    health = player.tank().health(),
-                                    btmac = player.tank().btmac(),
-                                    motor_speeds = player.tank().motor_speeds()
+                                    health = tank.health(),
+                                    btmac = tank.btmac(),
+                                    motor_speeds = tank.motor_speeds()
                                     ),
                                btmac = player.btmac()
                                )
+                        remaining_players[player_uuid] = new_player
 
         return ActiveMatchState(uuid = self.uuid(),
                                 players = remaining_players,
