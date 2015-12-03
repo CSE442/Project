@@ -100,12 +100,21 @@ def main():
             state_prev = state_next
             time_prev = time_next
 
+        # TESTING
+        state_next = state_prev.next(
+                GameStartEvent(Uuid.generate()),
+                time_prev,
+                time_next - time_prev)
+
         while state_prev.is_running():
             try:
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
                 for btmac,data in bt_data.iteritems():
-                    print btmac, struct.unpack('b',data)
+                    state_next = state_prev.next(
+                            BluetoothEvent.from_json(data, btmac),
+                            time_prev,
+                            time_next - time_prev)
             except:
                 pass
             '''
