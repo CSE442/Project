@@ -16,7 +16,8 @@ from   main_bluetooth    import *
 from   message_generator import MessageGenerator
 from   bluetooth_manager import BluetoothManager
 #######import colorOptimizatiom_2 as camera
-import camera_tracking_class
+#import camera_tracking_class
+import camera_tracking_class_rewrite
 
 def main():
     # Create the communication channels between threads
@@ -50,7 +51,7 @@ def main():
                                                   , unity_receive_channel
                                                   ))
 
-    tracker=camera_tracking_class.camera_thread()
+    tracker=camera_tracking_class_rewrite.camera_thread()
     tracker.start()
     print "I MADE IT"
     print tracker.getTrackingInformation()
@@ -101,45 +102,48 @@ def main():
 
         #####DELTE ME YOU FOOL
         print "I MADE IT AGAIN"
-        print tracker.getTrackingInformation()
+        
+        while True:
+            print tracker.getTrackingInformation()
 
         # Add all phones and tanks to the state
-        i = 0
-        for tank in connected_tanks.iterkeys():
-            print tank
-            state_next = state_prev.next(\
-                    PlayerJoinEvent(Uuid.generate(),
-                        Player(Uuid.generate(),
-                               btmac = connected_phones[i],
-                               tank = Tank(Uuid.generate(),
-                                           btmac = tank))),
-                               time_prev, time_next - time_prev)
-            i += 1
+        # i = 0
+        # for tank in connected_tanks.iterkeys():
+        #     print tank
+        #     state_next = state_prev.next(\
+        #             PlayerJoinEvent(Uuid.generate(),
+        #                 Player(Uuid.generate(),
+        #                        btmac = connected_phones[i],
+        #                        tank = Tank(Uuid.generate(),
+        #                                    btmac = tank))),
+        #                        time_prev, time_next - time_prev)
+        #     i += 1
 
-        if len(tank) == 0:
-            state_prev = state_next
-            time_prev = time_next
+        # if len(tank) == 0:
+        #     state_prev = state_next
+        #     time_prev = time_next
 
-        while state_prev.is_running():
-            try:
-                bt_data = main_bluetooth_receive_channel.receive_exn()
-                assert type(bt_data) is dict
-                print bt_data
-            except ReceiveException:
-                pass
-            '''
-            time_next = time.clock()
-            state_next = state_prev.next([], time_prev, time_next - time_prev)
-            state_prev = state_next
-            time_prev = time_next
-            '''
-            if isinstance(state_next, State):
-                print json.dumps(state_next.to_json(),
-                                 sort_keys = True,
-                                 indent = 4,
-                                 separators = (', ', ': '))
+        # while state_prev.is_running():
+        #     try:
+        #         bt_data = main_bluetooth_receive_channel.receive_exn()
+        #         assert type(bt_data) is dict
+        #         print bt_data
+        #     except ReceiveException:
+        #         pass
+        #     '''
+        #     time_next = time.clock()
+        #     state_next = state_prev.next([], time_prev, time_next - time_prev)
+        #     state_prev = state_next
+        #     time_prev = time_next
+        #     '''
+        #     if isinstance(state_next, State):
+        #         print json.dumps(state_next.to_json(),
+        #                          sort_keys = True,
+        #                          indent = 4,
+        #                          separators = (', ', ': '))
 
     except KeyboardInterrupt:
+
         thread.exit()
 
 

@@ -44,7 +44,7 @@ def isOrange(blue, green, red):
         return False
 
 def isPink(blue, green, red):
-    if ((red-(2*blue))/red <= 0.1) and ((red-(4*green))/red <= 0.1) and ((blue-(2*green))/blue <= 0.1):
+    if (   (red-(2*blue))/red <= 0.1) and ((red-(4*green))/red <= 0.1) and ((blue-(2*green))/blue <= 0.1):
         return True
     else:
         return False
