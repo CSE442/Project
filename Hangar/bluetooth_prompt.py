@@ -65,4 +65,5 @@ def connect_phones_prompt(bluetooth_manager, numDevices):
     for i in range(numDevices):
         btmac = bluetooth_manager.add_device()
         connected_phones.append(btmac)
+        print "Connection made with", btmac
     return connected_phones

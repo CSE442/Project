@@ -142,7 +142,7 @@ class BluetoothManager(object):
         device = bluetooth.find_service(address = btmac, uuid = uuid)
 
         if len(device) == 0:
-            return True
+            return False
 
         client_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         client_sock.connect((device[0]["host"], device[0]["port"]))

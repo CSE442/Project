@@ -95,6 +95,14 @@ def main():
         if len(connected_tanks) != 0:
             state_prev = state_next
             time_prev = time_next
+        elif (len(connected_phones) == 2):
+            state_next = state_prev.next(\
+                    PlayerJoinEvent(Uuid.generate(),
+                        Player(Uuid.generate(),
+                               btmac = connected_phones[0],
+                               tank = Tank(Uuid.generate(),
+                                           btmac = connected_phones[1]))),
+                               time_prev, time_next - time_prev)
 
         # TESTING
         time_next = time.clock()
@@ -110,7 +118,7 @@ def main():
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
                 for btmac,data in bt_data.iteritems():
-                    print {btmac: data}
+                #    print {btmac: data}
                     jsons = []
                     json_single = ""
                     for i in range(len(data)):
@@ -123,7 +131,7 @@ def main():
                         else:
                             json_single+= data[i]
 
-                    print jsons
+                #    print jsons
 
                     for string in jsons:
                         json_data = json.loads(string)
@@ -139,6 +147,7 @@ def main():
                 pass
 
             bluetooth_data, state_next = state_next.bluetooth_info()
+            main_bluetooth_send_channel.send(bluetooth_data)
 
             '''
             time_next = time.clock()
@@ -152,8 +161,7 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
                 main_unity_send_channel.send(current_json)
-                #print current_json
-                #print bluetooth_data
+                print current_json
 
     except KeyboardInterrupt:
         bluetooth_manager.bluetooth_stop()

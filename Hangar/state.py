@@ -347,16 +347,12 @@ class Uuid(object):
 class Bullet(object):
     def __init__():
         raise NotImplementedError()
-
     def orientation():
         raise NotImplementedError()
-
     def damage():
         raise NotImplementedError()
-
     def collision_radius():
         raise NotImplementedError()
-
     def advance():
         raise NotImplementedError()
 
@@ -381,11 +377,19 @@ class DefaultBullet(Bullet):
         assert type(damage) is int
         assert isinstance(orientation, Orientation)
         assert isinstance(orientation_delta, Orientation)
-        self.uuid = uuid
-        self.damage = damage
-        self.orientation = orientation
-        self.orientation_delta = orientation_delta
+        self._uuid = uuid
+        self._damage = damage
+        self._orientation = orientation
+        self._orientation_delta = orientation_delta
 
+    def uuid():
+        return self._uuid
+    def damage():
+        return self._damage
+    def orientation():
+        return self._orientation
+    def orientation_delta():
+        return self._orientation_delta
     def collision_radius(self):
         return 1.0
 
@@ -399,10 +403,10 @@ class DefaultBullet(Bullet):
     def to_json(self):
         return {
             'variant': 'DefaultBullet',
-            'uuid': self.uuid,
-            'damage': self.damage,
-            'orientation': self.orientation.to_json(),
-            'orientation_delta': self.orientation_delta.to_json()
+            'uuid': self._uuid,
+            'damage': self._damage,
+            'orientation': self._orientation.to_json(),
+            'orientation_delta': self._orientation_delta.to_json()
         }
 
     def advance(self, delta_time):
@@ -418,13 +422,10 @@ class DefaultBullet(Bullet):
 class Weapon(object):
     def __init__():
         raise NotImplementedError()
-
     def uuid():
         raise NotImplementedError()
-
     def ammo():
         raise NotImplementedError()
-
     def fire():
         raise NotImplementedError()
 
@@ -447,9 +448,16 @@ class DefaultWeapon(Weapon):
         assert type(uuid) is int
         assert type(ammo) is int
         assert type(damage) is int
-        self.uuid = uuid
-        self.ammo = ammo
-        self.damage = damage
+        self._uuid = uuid
+        self._ammo = ammo
+        self._damage = damage
+
+    def uuid(self):
+        return self._uuid
+    def ammo(self):
+        return self._ammo
+    def damage(self):
+        return self._damage
 
     @staticmethod
     def from_json(self):
@@ -460,9 +468,9 @@ class DefaultWeapon(Weapon):
     def to_json(self):
         return {
             'variant': 'DefaultWeapon',
-            'uuid': self.uuid,
-            'ammo': self.ammo,
-            'damage': self.damage
+            'uuid': self._uuid,
+            'ammo': self._ammo,
+            'damage': self._damage
         }
 
     def fire(self, orientation = Orientation()):
@@ -475,9 +483,9 @@ class DefaultWeapon(Weapon):
         bullet = DefaultBullet(uuid = Uuid.generate(),
                                orientation = orientation,
                                orientation_delta = orientation_delta)
-        default_weapon = DefaultWeapon(uuid = self.uuid,
-                                       ammo = self.ammo - 1,
-                                       damage = self.damage)
+        default_weapon = DefaultWeapon(uuid = self._uuid,
+                                       ammo = self._ammo - 1,
+                                       damage = self._damage)
         return (default_weapon, bullet)
 
 class Turret(object):
@@ -521,7 +529,7 @@ class Tank(object):
             turret = Turret(Uuid.generate()),
             health = 10,
             btmac = "",
-            motorspeeds = 0
+            motorspeeds = ""
             ):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
@@ -536,24 +544,20 @@ class Tank(object):
 
     def uuid(self):
         return self._uuid
-
     def btmac(self):
         return self._btmac
-
     def is_alive(self):
         return self._health > 0
-
     def turret(self):
         return self._turret
-
     def health(self):
         return self._health
-
     def orientation(self):
         return self._orientation
-
     def motorspeeds(self):
         return self._motorspeeds
+    def collision_radius(self):
+        return 1.0
 
     @staticmethod
     def from_json(json):
@@ -583,12 +587,8 @@ class Tank(object):
                         health = 0)
         else:
             return Tank(uuid = self.uuid(),
-                        orientation = self.orientation(),
-                        turret = self.turret(),
+                        orientation = self.orientation(), turret = self.turret(),
                         health = self.health() - damage)
-
-    def collision_radius(self):
-        return 1.0
 
 class Player(object):
     def __init__(
@@ -604,10 +604,8 @@ class Player(object):
 
     def btmac(self):
         return self._btmac
-
     def tank(self):
         return self._tank
-
     def uuid(self):
         return self._uuid
 
@@ -631,7 +629,6 @@ class Prefab(object):
         TODO: we do not yet have any prefabs
         """
         raise IllegalVariantError(json['variant'])
-
     def to_json():
         raise NotImplementedError()
 
@@ -639,17 +636,14 @@ class Prefab(object):
 class IllegalVariantError(Exception):
     def __init__(variant):
         self._variant = variant
-
     def variant(self):
         return self._variant
-
     def __str__(self):
         return repr(self._variant)
 
 class Event(object):
     def __init__():
         raise NotImplementedError()
-
     def uuid():
         raise NotImplementedError()
 
@@ -670,7 +664,6 @@ class Event(object):
 class BluetoothEvent(Event):
     def __init__():
         raise NotImplementedError()
-
     def uuid():
         raise NotImplementedError()
 
@@ -703,10 +696,8 @@ class BluetoothSelectTankEvent(BluetoothEvent):
 
     def uuid(self):
         return self._uuid
-
     def phone_btmac(self):
         return self._phone_btmac
-
     def tank_btmac(self):
         return self._tank_btmac
 
@@ -734,7 +725,6 @@ class BluetoothFireEvent(BluetoothEvent):
 
     def uuid(self):
         return self._uuid
-
     def phone_btmac(self):
         return self._phone_btmac
 
@@ -762,10 +752,8 @@ class BluetoothTankMoveEvent(BluetoothEvent):
 
     def uuid(self):
         return self._uuid
-
     def phone_btmac(self):
         return self._phone_btmac
-
     def motorspeeds(self):
         return self._motorspeeds
 
@@ -796,10 +784,8 @@ class BluetoothTurretMoveEvent(BluetoothEvent):
 
     def uuid(self):
         return self._uuid
-
     def phone_btmac(self):
         return self._phone_btmac
-
     def angle(self):
         return self._angle
 
@@ -827,7 +813,6 @@ class SendAvailableTanks(Event):
 
     def uuid(self):
         return self._uuid
-
     def initial_btmacs(self):
         return self._initial_btmacs
 
@@ -861,7 +846,6 @@ class DirectionalKeyPushEvent(Event):
 
     def uuid(self):
         return self._uuid
-
     def keycode(self):
         return self._keycode
 
@@ -905,7 +889,6 @@ class PlayerJoinEvent(Event):
 
     def uuid(self):
         return self._uuid
-
     def player(self):
         return self._player
 
@@ -973,10 +956,8 @@ class State(object):
 
     def uuid(self):
         raise NotImplementedError()
-
     def next(self, events, time, elapsed_time):
         raise NotImplementedError()
-
     def is_running(self):
         raise NotImplementedError()
 
@@ -1009,6 +990,8 @@ class LobbyState(State):
 
     def uuid(self):
         return self._uuid
+    def is_running(self):
+        return self._is_running
 
     def next(self, event, time, elapsed_time):
         if isinstance(event, PlayerJoinEvent):
@@ -1031,8 +1014,6 @@ class LobbyState(State):
         else:
             raise NotImplementedError()
         return LobbyState(self._uuid, self._players)
-    def is_running(self):
-        return self._is_running
 
     @staticmethod
     def from_json(json):
@@ -1056,12 +1037,10 @@ class QuitState(State):
 
     def uuid(self):
         return self._uuid
-
-    def next(self, events, time, elapsed_time):
-        return QuitState()
-
     def is_running(self):
         return False
+    def next(self, events, time, elapsed_time):
+        return QuitState()
 
     @staticmethod
     def from_json(json):
@@ -1079,7 +1058,8 @@ class ActiveMatchState(State):
             uuid,
             players = {},
             projectiles = {},
-            prefabs = {}):
+            prefabs = {},
+            is_running = True):
         assert type(uuid) is int
         for player in players.itervalues():
             assert type(player) is Player
@@ -1087,21 +1067,16 @@ class ActiveMatchState(State):
         self._players = players
         self._projectiles = projectiles
         self._prefabs = prefabs
-######### FIX FOR FINAL, SIMPLY FOR TESTING
-        self._is_running = True
-
-    def is_running(self):
-        return self._is_running
+        self._is_running = is_running
 
     def uuid(self):
         return self._uuid
-
+    def is_running(self):
+        return self._is_running
     def player(self, uuid):
         return self._players[uuid]
-
     def projectile(self, uuid):
         return self._projectiles[uuid]
-
     def prefab(self, uuid):
         return self._prefabs[uuid]
 
@@ -1109,7 +1084,7 @@ class ActiveMatchState(State):
         bluetooth_data = {}
         for player_uuid,player in self._players.iteritems():
             tank = player.tank()
-            if True or tank.motorspeeds() != 0:
+            if tank.motorspeeds() != "":
                 bluetooth_data[tank.btmac()] = tank.motorspeeds()
                 new_player = Player(
                             uuid = player.uuid(),
@@ -1119,7 +1094,7 @@ class ActiveMatchState(State):
                                 turret = tank.turret(),
                                 health = tank.health(),
                                 btmac = tank.btmac(),
-                                motorspeeds = 0
+                                motorspeeds = ""
                                 ),
                            btmac = player.btmac()
                            )
@@ -1156,7 +1131,7 @@ class ActiveMatchState(State):
         detect collisions between tanks and projectiles
         perform those operations
         """
-        print time, delta_time
+#        print time, delta_time
         projectiles = ActiveMatchState.advance_projectiles(self._projectiles, delta_time)
         tanks = {}
         for player_uuid, player in self._players.iteritems():
@@ -1185,26 +1160,28 @@ class ActiveMatchState(State):
         if isinstance(event, BluetoothFireEvent):
             for player_uuid, player in self._players.iteritems():
                 if player.btmac() == event.phone_btmac():
-                    turret         = player.tank().turret()
-                    orientation    = turret.orientation()
-                    weapon, bullet = turret.weapon().fire(orientation)
-                    new_player = Player(
-                                uuid = player.uuid(),
-                                tank = Tank(
-                                    uuid = tank.uuid(),
-                                    orientation = tank.orientation(),
-                                    turret = Turret(
-                                        turret.uuid(),
-                                        orientation = turret.orientation(),
-                                        weapon = weapon
+                    if player.tank().turret().weapon().ammo() >= 1:
+                        turret         = player.tank().turret()
+                        orientation    = turret.orientation()
+                        weapon, bullet = turret.weapon().fire(orientation)
+                        new_player = Player(
+                                    uuid = player.uuid(),
+                                    tank = Tank(
+                                        uuid = tank.uuid(),
+                                        orientation = tank.orientation(),
+                                        turret = Turret(
+                                            turret.uuid(),
+                                            orientation = turret.orientation(),
+                                            weapon = weapon
+                                            ),
+                                        health = tank.health(),
+                                        btmac = tank.btmac(),
+                                        motorspeeds = tank.motorspeeds()
                                         ),
-                                    health = tank.health(),
-                                    btmac = tank.btmac(),
-                                    motorspeeds = tank.motorspeeds()
-                                    ),
-                               btmac = player.btmac()
-                               )
-                    remaining_players[player_uuid] = new_player
+                                   btmac = player.btmac()
+                                   )
+                        remaining_players[player_uuid] = new_player
+
         if isinstance(event, BluetoothTankMoveEvent):
             for player_uuid, player in self._players.iteritems():
                 if player.btmac() == event.phone_btmac():
@@ -1218,11 +1195,12 @@ class ActiveMatchState(State):
                                     turret = turret,
                                     health = tank.health(),
                                     btmac = tank.btmac(),
-                                    motorspeeds = event.motorspeeds()
+                                    motorspeeds = str(event.motorspeeds())
                                     ),
                                btmac = player.btmac()
                                )
                     remaining_players[player_uuid] = new_player
+
         if isinstance(event, BluetoothTurretMoveEvent):
             for player_uuid, player in self._players.iteritems():
                 if player.btmac() == event.phone_btmac():
