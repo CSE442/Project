@@ -35,6 +35,9 @@ public class TankControl : MonoBehaviour
 
 	public GameObject Tank;
 
+
+	public bool locked;
+
 	// structure 
 	private TankData player;
 	private Vector3 location;
@@ -55,12 +58,15 @@ public class TankControl : MonoBehaviour
 	
 	//private string fileLocation = "Assets/Scripts/states.json";		//obtain file Location
 
-	private void getKey(){
+	private string getKey(){
 	
-
+		string keyValue = null;
 		foreach(string key in players.Keys){
 			player.keyValue = key.ToString();
+			keyValue = key.ToString();
 		}
+
+		return keyValue;
 
 	}
 
@@ -235,7 +241,7 @@ public class TankControl : MonoBehaviour
 
 	void updateTanks(){
 
-		getKey ();
+		//getKey ();
 		print (player.keyValue);
 		moveTank();
 
@@ -251,7 +257,7 @@ public class TankControl : MonoBehaviour
 		player = new TankData();
 		threadInit = false;	//this flag is for a connected hanger program
 		tcpIsPaused = false;
-;
+		locked = false;
 
 		IPEndPoint localEndpoint = new IPEndPoint (IPAddress.Parse ("127.0.0.1"), 33333);
 		try{
@@ -285,19 +291,23 @@ public class TankControl : MonoBehaviour
 			//read input, then sends data to working method
 			//doJson(data);
 			if (!tcpIsPaused){
-				player.jsonString = Encoding.ASCII.GetString(msg,0,length);
-				print(player.jsonString);
-				if(player.jsonString == "")
-					break;
-				var infile = JSONNode.Parse (player.jsonString);
-				players = new Dictionary<string, JSONNode>();
+				if(locked == false){
+					/*!!!*!!!!*!!!!*/player.jsonString = Encoding.ASCII.GetString(msg,0,length);
+					print(player.jsonString);
+					if(player.jsonString == "")
+						break;
+					var infile = JSONNode.Parse (player.jsonString);
+					players = new Dictionary<string, JSONNode>();
 
-				foreach (KeyValuePair<String, JSONNode> pair in infile["players"].AsObject) {
-					players.Add (pair.Key, pair.Value);
+					foreach (KeyValuePair<String, JSONNode> pair in infile["players"].AsObject) {
+						players.Add (pair.Key, pair.Value);
 
+					}
+
+					print(1);
+					//threadInit = true;
+					locked = true;
 				}
-				print (infile["players"]["7"]["tank"]["orientation"]["linear"][0].AsFloat);
-				//threadInit = true;
 			}
 			//print(data);/
 			if(player.jsonString == "")
@@ -321,8 +331,8 @@ public class TankControl : MonoBehaviour
 		tcpIsPaused = true;
 
 		if (threadInit) {
-			updateTanks ();
-			//print (getTankHealth(getKey()));
+			print(getTankHealth(getKey()));
+			moveTank();
 			//print("so much poop");
 		}
 		tcpIsPaused = false;
