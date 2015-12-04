@@ -34,6 +34,7 @@ public class TankControl : MonoBehaviour
 {
 
 	public GameObject Tank;
+	public GameObject Turret;
 
 
 	public bool locked;
@@ -142,6 +143,25 @@ public class TankControl : MonoBehaviour
 		
 		return uuid;
 	}
+	
+	public Quaternion getTurretAngle(){
+		
+		float W = 0, X = 0, Y = 0, Z = 0;
+		Quaternion pos;
+		
+		var infile = JSONNode.Parse (player.jsonString);
+		
+		W = (infile["players"][player.keyValue]["turret"]["orientation"]["angle"]["a"].AsFloat);
+		X = (infile["players"][player.keyValue]["turret"]["orientation"]["angle"]["i"].AsFloat);
+		Y = (infile["players"][player.keyValue]["turret"]["orientation"]["angle"]["j"].AsFloat);
+		
+		Z = (infile["players"][player.keyValue]["turret"]["orientation"]["angle"]["k"].AsFloat);
+		
+		pos = new Quaternion (W, X, Y, Z);	
+		
+		// Pos is a Quaternion type
+		return pos;
+	}
 
 	/*=================== WEAPON ======================
 	 * These functions require keyValue to be passed in, 
@@ -197,41 +217,48 @@ public class TankControl : MonoBehaviour
 
 		var infile = JSON.Parse (player.jsonString);
 
-		//print (infile ["players"].Value);
+		// Extract the (X,Y,Z) as a float and make it a new vector 3. 
 		X = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][0].AsFloat);
 		Y = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][1].AsFloat);
 		Z = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][2].AsFloat);
 
 		pos = new Vector3 (X, Y, Z);
-		return pos;
+		return pos; 
 	}
 
 	// Orientation data for tank
-	public Quaternion getTankAngle(string keyValue){
+	public Quaternion getTankAngle(){
 		
 		float W = 0, X = 0, Y = 0, Z = 0;
 		Quaternion pos;
 
 		var infile = JSONNode.Parse (player.jsonString);
 
-		W = (infile["players"][keyValue]["tank"]["orientation"]["angle"]["a"].AsFloat);
-		X = (infile["players"][keyValue]["tank"]["orientation"]["angle"]["i"].AsFloat);
-		Y = (infile["players"][keyValue]["tank"]["orientation"]["angle"]["j"].AsFloat);
-		Z = (infile["players"][keyValue]["tank"]["orientation"]["angle"]["k"].AsFloat);
+		// Extract the (W,X,Y,Z) as a vector 4. 
+		W = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["a"].AsFloat);
+		X = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["i"].AsFloat);
+		Y = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["j"].AsFloat);
+		Z = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["k"].AsFloat);
 
 		pos = new Quaternion (W, X, Y, Z);
-		//float angle = Quaternion.Angle (pos, pastAngle);
 
-		//return angle;
 		return pos;
 	}
 
+
 	private void moveTank(){
 
-		Tank.transform.Translate (getTankPosition () * Time.deltaTime);
+		Tank.transform.position = getTankPosition ();
 		print(Tank.transform.position);
+		Tank.transform.rotation = getTankAngle ();
+		print (Tank.transform.rotation);
 
 		return;
+	}
+
+	private void handleTurret(){
+		Turret.transform.rotation = getTurretAngle ();
+		print (Turret.transform.rotation);
 	}
 
 	private void handleShoot(/*bullet list?*/)
@@ -239,14 +266,15 @@ public class TankControl : MonoBehaviour
 
 	}
 
-	void updateTanks(){
+	/*
+	 * This function should hold all tank updating code.
+	 */
+	private void updateTanks(){
 
 		//getKey ();
 		print (player.keyValue);
 		moveTank();
 
-		//transform bool used in update() for debug when usisng 1 file. 
-		//transformBool = false;
 		return;
 	}
 
@@ -291,20 +319,20 @@ public class TankControl : MonoBehaviour
 			//read input, then sends data to working method
 			//doJson(data);
 			if (!tcpIsPaused){
-				if(locked == false){
+				//if(locked == false){
 					/*!!!*!!!!*!!!!*/player.jsonString = Encoding.ASCII.GetString(msg,0,length);
 					print(player.jsonString);
 					if(player.jsonString == "")
 						break;
 					var infile = JSONNode.Parse (player.jsonString);
+
 					players = new Dictionary<string, JSONNode>();
 
 					foreach (KeyValuePair<String, JSONNode> pair in infile["players"].AsObject) {
 						players.Add (pair.Key, pair.Value);
 
-					}
+					//}
 
-					print(1);
 					//threadInit = true;
 					locked = true;
 				}
@@ -312,6 +340,9 @@ public class TankControl : MonoBehaviour
 			//print(data);/
 			if(player.jsonString == "")
 				break;		//hanger closed. Nothing more to do here
+			//************
+			// on update
+			//************
 		}
 		print ("Reading thread returned");
 	}
@@ -322,17 +353,15 @@ public class TankControl : MonoBehaviour
 		print ("Startup thread returned");
 	}
 
-	//************
-	// on update
-	//************
 	void Update(){
 		//Tank.transform()
 
 		tcpIsPaused = true;
 
 		if (threadInit) {
-			print(getTankHealth(getKey()));
+			getKey();
 			moveTank();
+			handleTurret();
 			//print("so much poop");
 		}
 		tcpIsPaused = false;
