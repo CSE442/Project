@@ -57,7 +57,7 @@ class Quaternion(object):
         return (self.a, self.i, self.j, self.k)
 
     def normalize(self):
-        n = sqrt(self.a * self.a +
+        n = math.sqrt(self.a * self.a +
                  self.i * self.i +
                  self.j * self.j +
                  self.k * self.k)
@@ -72,9 +72,9 @@ class Quaternion(object):
         i = normal.i
         j = normal.j
         k = normal.k
-        return Matrix3x3((1 - 2*j**2 - 2*k**2,  2*i*j - 2*k*a,  2*i*k + 2*j*a),
+        return Matrix3x3(((1 - 2*j**2 - 2*k**2,  2*i*j - 2*k*a,  2*i*k + 2*j*a),
                          (2*i*j + 2*a*k,  1 - 2*i**2 - 2*k**2,  2*j*k - 2*i*a),
-                         (2*i*k - 2*j*a,  2*j*k + 2*i*a,  1 - 2*i**2 - 2*j**2))
+                         (2*i*k - 2*j*a,  2*j*k + 2*i*a,  1 - 2*i**2 - 2*j**2)))
 
     @staticmethod
     def from_json(json):
@@ -228,7 +228,7 @@ class Vector3(object):
 
     @staticmethod
     def from_tuple(tuple):
-        return Vector4(tuple[0], tuple[1], tuple[2])
+        return Vector3(tuple[0], tuple[1], tuple[2])
 
     def list(self):
         return [self.x, self.y, self.z]
@@ -242,7 +242,7 @@ class Vector3(object):
 
     def distance(self, other):
         assert type(other) is Vector3
-        return sqrt((self.x - other.x) ** 2 +
+        return math.sqrt((self.x - other.x) ** 2 +
                     (self.y - other.y) ** 2 +
                     (self.z - other.z) ** 2)
 
@@ -327,7 +327,6 @@ class Physics(object):
         by the specified 'delta_time'.
         """
         assert type(orientation) is Orientation
-        assert type(velocity) is Velocity
         assert type(delta_time) is float
         linear_velocity_delta = first_derivative.linear() + \
                 (second_derivative.linear() * delta_time)
@@ -383,13 +382,13 @@ class DefaultBullet(Bullet):
         self._orientation = orientation
         self._orientation_delta = orientation_delta
 
-    def uuid():
+    def uuid(self):
         return self._uuid
-    def damage():
+    def damage(self):
         return self._damage
-    def orientation():
+    def orientation(self):
         return self._orientation
-    def orientation_delta():
+    def orientation_delta(self):
         return self._orientation_delta
     def collision_radius(self):
         return 1.0
@@ -412,13 +411,13 @@ class DefaultBullet(Bullet):
 
     def advance(self, delta_time):
         assert type(delta_time) is float
-        orientation = Phsyics.project(orientation = self.orientation,
-                                      first_derivative = self.orientation_delta,
+        orientation = Physics.project(orientation = self._orientation,
+                                      first_derivative = self._orientation_delta,
                                       delta_time = delta_time)
-        return DefaultBullet(self.uuid,
-                             self.damage,
+        return DefaultBullet(self._uuid,
+                             self._damage,
                              orientation,
-                             self.orientation_delta)
+                             self._orientation_delta)
 
 class Weapon(object):
     def __init__():
@@ -477,7 +476,7 @@ class DefaultWeapon(Weapon):
     def fire(self, orientation = Orientation()):
         assert isinstance(orientation, Orientation)
         assert self.ammo >= 1
-        velocity_magnitude = Vector3(1, 0, 0)
+        velocity_magnitude = Vector3(1.0, 0.0, 0.0)
         velocity_angle = orientation.angular().matrix3x3()
         velocity = velocity_angle * velocity_magnitude
         orientation_delta = Orientation(linear = velocity)
@@ -1011,6 +1010,32 @@ class LobbyState(State):
                                                      btmac = event.tank_btmac()))
             return LobbyState(self._uuid, self._players)
         if isinstance(event, GameStartEvent):
+            for player_uuid, player in self._players.iteritems():
+                tank = player.tank()
+                turret = tank.turret()
+                weapon = DefaultWeapon(
+                        uuid = turret.weapon().uuid(),
+                        ammo = 10,
+                        damage = 1
+                        )
+                new_player = Player(
+                            uuid = player.uuid(),
+                            tank = Tank(
+                                uuid = tank.uuid(),
+                                orientation = tank.orientation(),
+                                turret = Turret(
+                                    turret.uuid(),
+                                    orientation = turret.orientation(),
+                                    weapon = weapon
+                                    ),
+                                health = tank.health(),
+                                btmac = tank.btmac(),
+                                motorspeeds = tank.motorspeeds()
+                                ),
+                           btmac = player.btmac()
+                           )
+                self._players[player_uuid] = new_player
+
             return ActiveMatchState(self._uuid, self._players)
         else:
             raise NotImplementedError()
@@ -1086,7 +1111,8 @@ class ActiveMatchState(State):
         for player_uuid,player in self._players.iteritems():
             tank = player.tank()
             if tank.motorspeeds() != "":
-                bluetooth_data[tank.btmac()] = struct.pack('b',int(tank.motorspeeds()))
+                bluetooth_data[tank.btmac()] =\
+                        struct.pack('b',int(tank.motorspeeds()))
                 new_player = Player(
                             uuid = player.uuid(),
                             tank = Tank(
@@ -1133,7 +1159,9 @@ class ActiveMatchState(State):
         perform those operations
         """
 #        print time, delta_time
-        projectiles = ActiveMatchState.advance_projectiles(self._projectiles, delta_time)
+        projectiles = ActiveMatchState.advance_projectiles(
+                self._projectiles,
+                delta_time)
         tanks = {}
         for player_uuid, player in self._players.iteritems():
             tank = player.tank()
@@ -1143,17 +1171,17 @@ class ActiveMatchState(State):
         for tank_uuid, tank in tanks.iteritems():
             if tank_uuid in collisions.iterkeys():
                 projectile_uuid = collisions[tank_uuid]
-                projectile = projeciles[projectile_uuid]
-                damaged_tanks[tank_uuid] = tank.take_damage(projectile.damage)
+                projectile = projectiles[projectile_uuid]
+                damaged_tanks[tank_uuid] = tank.take_damage(projectile.damage())
             else:
                 damaged_tanks[tank_uuid] = tank
-        remaining_players = {}
+        remaining_players = self._players
         for player_uuid, player in self._players.iteritems():
             player_tank = damaged_tanks[player.tank().uuid()]
             remaining_players[player_uuid] = Player(uuid = player.uuid(),
                                                     tank = player_tank,
                                                     btmac = player.btmac())
-        remaining_projectiles = {}
+        remaining_projectiles = self._projectiles
         for projectile_uuid, projectile in projectiles.iteritems():
             if projectile_uuid not in collisions.values():
                 remaining_projectiles[projectile_uuid] = projectile
@@ -1162,6 +1190,7 @@ class ActiveMatchState(State):
             for player_uuid, player in self._players.iteritems():
                 if player.btmac() == event.phone_btmac():
                     if player.tank().turret().weapon().ammo() >= 1:
+                        tank           = player.tank()
                         turret         = player.tank().turret()
                         orientation    = turret.orientation()
                         weapon, bullet = turret.weapon().fire(orientation)
@@ -1181,6 +1210,7 @@ class ActiveMatchState(State):
                                         ),
                                    btmac = player.btmac()
                                    )
+                        remaining_projectiles[bullet.uuid()] = bullet
                         remaining_players[player_uuid] = new_player
 
         if isinstance(event, BluetoothTankMoveEvent):
@@ -1263,7 +1293,7 @@ class ActiveMatchState(State):
                 projectile_position = projectile.orientation().linear()
                 collision_radius = tank.collision_radius() + \
                                    projectile.collision_radius()
-                if Phsyics.entities_do_collide(tank_position,
+                if Physics.entities_do_collide(tank_position,
                                                projectile_position,
                                                collision_radius):
                     collisions[tank_uuid] = projectile_uuid

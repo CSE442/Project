@@ -46,16 +46,11 @@ def main():
     unity_receive_thread_id = thread.start_new_thread(main_unity,
                                                   (unity_receive_channel,))
 
-    # Spawn thread for controlling tank w/ keyboard
-#    keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
-
     # Spawn the Tracking camera thread
 #    tracking_camera_id=thread.start_new_thread(camera.Tracker,
 #                                               (tracking_channel_send,))
 
     # Before making any connections, ensure all devices are paired with the server
-    # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
-    # Receive bluetooth messages
     try:
         time_prev = time.clock()
         time_next = None
@@ -94,7 +89,6 @@ def main():
         if len(connected_tanks) != 0:
             state_prev = state_next
             time_prev = time_next
-
         # Work around for if 2 phones are connected but no tanks are.
         # This allows all bytes sent to the tank to be displayed on
         # another device
@@ -117,6 +111,7 @@ def main():
         time_prev = time_next
 
         while state_prev.is_running():
+            start_time = time.clock()
             try:
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
@@ -141,7 +136,6 @@ def main():
                                 time_next - time_prev)
                         state_prev = state_next
                         time_prev = time_next
-
             except ReceiveException:
                 pass
 
@@ -160,7 +154,10 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
                 main_unity_send_channel.send(current_json)
-#                print current_json
+                print current_json
+            delta_time = time.clock() - start_time
+            if (delta_time < (1/60.)):
+                time.sleep(1/60. - delta_time)
 
     except KeyboardInterrupt:
         bluetooth_manager.bluetooth_stop()
