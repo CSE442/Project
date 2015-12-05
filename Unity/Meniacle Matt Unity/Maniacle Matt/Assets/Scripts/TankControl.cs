@@ -352,7 +352,7 @@ public class TankControl : MonoBehaviour
 			if (!tcpIsPaused && accumulatedMessage.Length > 0){
 				//if(locked == false){
 					/*!!!*!!!!*!!!!*///player.jsonString = Encoding.ASCII.GetString(msg,0,length);
-					if(runningMessages.Contains("\x4"))
+					if(runningMessages.Length < 3 && runningMessages.Contains("\x4"))
 						break;
 				    player.jsonString = accumulatedMessage;
 					//print(player.jsonString);
@@ -371,7 +371,7 @@ public class TankControl : MonoBehaviour
 			}
 			//print(data);/
             //print(runningMessages);
-			if(runningMessages.Contains("\x4")) {
+			if(runningMessages.Length < 3 && runningMessages.Contains("\x4")) {
 				print("Connection Closed");
 				break;		//hanger closed. Nothing more to do here
 			}
