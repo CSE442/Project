@@ -11,25 +11,38 @@ import threading
 import channel
 
 #_________________________________Objects_________________________________
-class color:
+class color(object):
 	def __init__(self, red, green, blue):
+
+
 
 		self.red=float(red) #red
 		self.green=float(green) #green
 		self.blue=float(blue) #blue
 		
+		self.rgb=(red, green, blue)
+
 		self.hueUpper=float(get_rgb_hue(self.red, self.green, self.blue) + (get_rgb_hue(self.red, self.green, self.blue) * 0.10)) #hue upper bound
 		self.saturationUpper=float(get_rgb_saturation(self.red, self.green, self.blue) + (get_rgb_saturation(self.red, self.green, self.blue) * 0.01)) #saturation upper bound 
 		self.valueUpper= float(get_rgb_value(self.red, self.green, self.blue) + (get_rgb_value(self.red, self.green, self.blue) * 0.01)) #value upper bound
-		#self.saturationUpper=float()
-		#self.valueUpper=float()
-
 
 		self.hueLower=float(get_rgb_hue(self.red, self.green, self.blue) - (get_rgb_hue(self.red, self.green, self.blue) * 0.10)) #hue lower bound
 		self.saturationLower=float(get_rgb_saturation(self.red, self.green, self.blue) - (get_rgb_saturation(self.red, self.green, self.blue) * 0.01)) #saturation lower bound 
 		self.valueLower=float(get_rgb_value(self.red, self.green, self.blue) - (get_rgb_value(self.red, self.green, self.blue) * 0.01)) #value lower bound
-		#self.saturationLower=float()
-		#self.valueLower=float()
+
+		totalX=0
+		totalY=0
+		numberOfPixels=0
+		finalX=0
+		finalY=0
+		exists=False
+		averageX=0
+		averageY=0
+		found=False
+		width=0
+		height=0
+
+
 
 #____________________________Funcitons/Methods____________________________
 def get_rgb_hue(red, green, blue):
@@ -84,6 +97,9 @@ def isColor(desiredColor, red, green, blue):
 				return True
 	else: 
 		return False
+
+
+##############################################################################################################################################
 class camera_thread(threading.Thread):#subclass of thread
 	def __init__(self):
 		threading.Thread.__init__(self)
@@ -94,16 +110,17 @@ class camera_thread(threading.Thread):#subclass of thread
 		#_________________________________Settings_________________________________
 		#This section defines a number of global variables for use as settings
 		# in the camera_thread class execution
-		testing = True		#Set true if testing code should run
+		testing = False		#Set true if method/function testing code should run
 		debugging = True 		#Set true if Debugging code should run
 
 		#base color RBG values for teh intended color recognition 
-		defaultColors={}
-		defaultColors.blue=color(0,255,0)
 
-		green=color(0,0,255)
-		orange=color(255,146,50)
-		pink=color(255,91,223)
+		defaultColors={}
+		defaultColors["blue"]=color(0,255,0)
+		defaultColors["green"]=color(0,0,255)
+		defaultColors["orange"]=color(255,146,50)
+		defaultColors["pink"]=color(255,91,223)
+		colorsCaught={}
 
 
 		#the webcam to capture from 
@@ -119,34 +136,144 @@ class camera_thread(threading.Thread):#subclass of thread
 			halfW = float(width/2)
 			height = initialFrame.shape[1]
 			halfH = float(height/2)
-
-			totalRedX = 0
-			totalRedY = 0
-			totalOrangeX=0
-			totalOrangeY=0
-			totalPinkX=0
-			totalPinkY=0
-			totalGreenX = 0
-			totalGreenY = 0
-			totalBlueX = 0
-			totalBlueY = 0
-			numberOfRedPixels = 0
-			numberOfBluePixels = 0
-			numberOfGreenPixels = 0
-			numberOfOrangePixels=0
-			numberOfPinkPixels=0
-			greenExists = False
-			blueExists = False
-			redExists = False
-			pinkExists=False
-			orangeExists=False
 			step = width
 
 			for c in range(0, width):
 				for r in range(0,height):
 					color = initialFrame[c,r]
 					#BGR
-					blue = color[0]
+			        blue = color[0]
+			        green = color[1]
+			        red = color[2]
+			        for key, item in defaultColors.iteritems()
+			        	if isColor(item, red, green, blue):
+			        		if debugging:
+			        			initialFrame[c.r]=(item.red, item.green, item.blue)
+			        		item.exists=True
+			        		item.numberOfPixels+=1
+			        		item.totalX+=c
+			        		item.totalY+=r
+			        		colorsCaught[key] = item
+			        	else:
+			        		if debugging:
+			        			initialFrame[c,r] = (0,0,0)
+
+			for key, item in colorsCaught.iteritems():
+        		if item.numberOfPixels!=0:
+        			item.finalX=item.totalX/item.numberOfPixels
+        			item.finalY=item.totalY/item.numberOfPixels
+        			if item.finalX>0 and item.finalX<(width-1) and item.finalY>0 and item.finalY<(height-1):
+        				#determine width of the circle
+        				x1=item.finalX
+        				y1=item.finalY
+        				x2=item.finalX
+        				y2=item.finalY
+        				while x1<width and isColor(item, initialFrame[x1, item.finalY][0], initialFrame[x1, item.finalY][1], initialFrame[x1, item.finalY][2]):
+							if debugging:
+								initialFrame[x1, item.finalY] = (255,255,255)
+							x1+=1
+							item.width+=1
+						while x2>0 and isColor(item, initialFrame[x2, item.finalY][0], initialFrame[x2, item.finalY][1], initialFrame[x2, item.finalY][2]):
+							if debugging:
+								initialFrame[x2,item.finalY]=(255,255,255)
+							x2-=1
+							item.width+=1
+						while y1<height and isColor(item, initialFrame[item.finalX,y1][0], initialFrame[item.finalY,y1][1],initialFrame[item.finalY,y1][2]):
+							if debugging:
+								initialFrame[item.finalX, y1] = (255,255,255)
+							y1+=1
+							item.height+=1
+						while y2>0 and isColor(item, initialFrame[item.finalX, y2][0], initialFrame[item.finalX, y2][1], initialFrame[item.finalX, y2][2]):
+							if debugging:
+								initialFrame[item.finalY, y2]=(255,255,255)
+							y2-=1
+							item.height+=1
+						if(min(item.height, item.width) < step):
+							step = min(item.height, item.width)
+				if item.exists:
+					self.colorDetectionList[key+"X"]=item.finalX
+					self.colorDetectionList[key+"Y"]=item.finalY
+
+			emptyImg=initialFrame
+			for c in range(0,width):   	#creates and empty image
+				for r in range(0,height):
+					emptyImg[c,r]=(0,0,0)
+			########################################TRACKING LOOP#########################################
+			while camera.isOpened():
+				start_time=time.time()
+
+				_,frame = camera.read()
+				width = frame.shape[0]
+				height = frame.shape[1]
+				for item in colorsCaught.itervalues():
+					item.totalY=0
+					item.totalX=0
+					item.numberOfPixels=0
+					item.averageY=0
+					item.averageX=0
+					item.found=0
+
+				if step == 0:
+					step = 10
+				for c in range(0, width, step/3):
+					for r in range(0,height, step/3):
+						color = frame[c,r]
+						blue = color[0]
+						green = color[1]
+						red = color[2]
+						for item in colorsCaught.itervalues():
+							if isColor(item, red, green, blue):
+								item.found=True
+								currentX = c
+								currentY = r
+								tempX=currentX
+								tempY=currentY
+								rightMostX=currentX
+								leftMostX=currentX
+								bottomMostY=currentY
+								topMostY=currentY
+								while tempX<width and isColor(item, frame[tempX, currentY][0],frame[tempX, currentY][1],frame[tempX, currentY][2]):
+									if debugging:
+										frame[tempX,currentY]=item.rgb #is this doesnt work put them in as (item.red,item.green,item.blue)
+									tempX+=1
+								rightMostX=tempX
+								tempX=currentX
+
+								while tempX>1 and isColor(item, frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]):
+									if debugging:
+										frame[tempX, currentY]=item.rgb
+									tempX-=1
+								leftMostX = tempX
+								while tempY<height and isColor(item, frame[currentX, tempY][0], frame[currentX, tempY][1], frame[currentX, tempY][2]):
+									if debugging:
+										frame[currentX,tempY]=item.rgb
+									tempY+=1
+								bottomMostY=tempY
+								tempY=currentY
+								while tempY>1 and isColor(item, frame[currentX][0], frame[currentX][1], frame[currentX][2]):
+									if debugging:
+										frame[currentX,tempY]=item.rgb
+									tempY+=1
+								topMostY=tempY
+
+								averageX=(leftMostX+rightMostX)/2
+								averageY=(bottomMostY+topMostY)/2
+
+								
+
+
+							else:
+								frame[c,r]= (0,0,0) 
+
+				
+
+					
+
+
+				
+
+
+
 
 
 
