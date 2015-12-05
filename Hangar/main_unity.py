@@ -19,6 +19,8 @@ def main_unity(unity_out_channel):
     s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
     print "Received Visualizer Connection on Port", VISUALIZER_PORT
     for message in MessageGenerator(unity_out_channel):
+        print message
         s.send(message)
+        s.send("\x03")
     thread.exit()
 

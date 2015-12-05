@@ -8,6 +8,7 @@
 import sys
 import socket
 import struct
+import socket
 import thread            as     thread
 import bluetooth_prompt  as     bp
 from   keyboard_input    import *
@@ -43,9 +44,13 @@ def main():
                                                           bluetooth_manager,))
 
     # Spawn the Visualizer Thread
-    unity_receive_thread_id = thread.start_new_thread(main_unity,
-                                                  (unity_receive_channel,))
+#    unity_receive_thread_id = thread.start_new_thread(main_unity,
+    #                                              (unity_receive_channel,))
 
+    VISUALIZER_ADDRESS = "127.0.0.1"
+    VISUALIZER_PORT    = 33333
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
     # Spawn the Tracking camera thread
 #    tracking_camera_id=thread.start_new_thread(camera.Tracker,
 #                                               (tracking_channel_send,))
@@ -153,14 +158,21 @@ def main():
                                  sort_keys = True,
                                  indent = 4,
                                  separators = (', ', ': '))
-                main_unity_send_channel.send(current_json)
+        #        main_unity_send_channel.send(current_json)
                 print current_json
+            s.send(current_json)
+            s.send("\x03")
+            '''
             delta_time = time.clock() - start_time
             if (delta_time < (1/60.)):
                 time.sleep(1/60. - delta_time)
+                '''
 
     except KeyboardInterrupt:
-        bluetooth_manager.bluetooth_stop()
+#        bluetooth_manager.bluetooth_stop()
+        s.send("\x04")
+        raw_input("Hit Enter")
+        time.sleep(1)
         thread.exit()
 
     # Close the main thread
