@@ -78,7 +78,6 @@ def main():
 
         time_next = time.clock()
 
-
         # Add all phones and tanks to the state
         i = 0
         for tank in connected_tanks.iterkeys():
@@ -95,6 +94,10 @@ def main():
         if len(connected_tanks) != 0:
             state_prev = state_next
             time_prev = time_next
+
+        # Work around for if 2 phones are connected but no tanks are.
+        # This allows all bytes sent to the tank to be displayed on
+        # another device
         elif (len(connected_phones) == 2):
             state_next = state_prev.next(\
                     PlayerJoinEvent(Uuid.generate(),
@@ -118,22 +121,18 @@ def main():
                 bt_data = main_bluetooth_receive_channel.receive_exn()
                 assert type(bt_data) is dict
                 for btmac,data in bt_data.iteritems():
-                #    print {btmac: data}
+#                    print {btmac: data}
                     jsons = []
                     json_single = ""
+                    # this will break up the received data into
+                    # multiple jsons if needed.
                     for i in range(len(data)):
-                        if data[i] == '{':
-                            json_single += '{'
-                        elif data[i] == '}':
-                            json_single += '}'
+                        json_single+= data[i]
+                        if data[i] == '}':
                             jsons.append(json_single)
                             json_single = ""
-                        else:
-                            json_single+= data[i]
-
-                #    print jsons
-
                     for string in jsons:
+#                        print string
                         json_data = json.loads(string)
                         time_next = time.clock()
                         state_next = state_prev.next(
@@ -161,7 +160,7 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
                 main_unity_send_channel.send(current_json)
-                print current_json
+#                print current_json
 
     except KeyboardInterrupt:
         bluetooth_manager.bluetooth_stop()

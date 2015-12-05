@@ -8,6 +8,7 @@
 import time
 import json
 import math
+import struct
 
 class DictionaryUtil(object):
     @staticmethod
@@ -1085,7 +1086,7 @@ class ActiveMatchState(State):
         for player_uuid,player in self._players.iteritems():
             tank = player.tank()
             if tank.motorspeeds() != "":
-                bluetooth_data[tank.btmac()] = tank.motorspeeds()
+                bluetooth_data[tank.btmac()] = struct.pack('b',int(tank.motorspeeds()))
                 new_player = Player(
                             uuid = player.uuid(),
                             tank = Tank(
