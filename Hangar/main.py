@@ -5,6 +5,9 @@
 # purpose: Provide an entry point for the program
 #
 
+import sys
+import socket
+import struct
 import socket
 import thread            as     thread
 import bluetooth_prompt  as     bp
@@ -42,30 +45,28 @@ def main():
                                                       (bluetooth_receive_channel,
                                                           bluetooth_manager,))
 
-    # Spawn the Visualizer Thread
-    unity_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    unity_socket.bind((VISUALIZER_ADDRESS, VISUALIZER_PORT))
-    unity_socket.listen(1)
-    unity_receive_thread_id = thread.start_new_thread(main_unity,
-                                                  ( unity_socket
-                                                  , unity_receive_channel
-                                                  ))
-
     tracker=camera_tracking_class.camera_thread()   #Generates camera tracking thread
     tracker.start()                                 #Starts thread.run() for camera
 
     # Spawn thread for controlling tank w/ keyboard
    ######## keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
+#    unity_receive_thread_id = thread.start_new_thread(main_unity,
+    #                                              (unity_receive_channel,))
+
+    VISUALIZER_ADDRESS = "127.0.0.1"
+    VISUALIZER_PORT    = 33333
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
+    # Spawn the Tracking camera thread
+#    tracking_camera_id=thread.start_new_thread(camera.Tracker,
+#                                               (tracking_channel_send,))
 
     # Before making any connections, ensure all devices are paired with the server
-    # Dictionary: Key = Bluetooth MAC, Value = Data Sent from Device
-    # Receive bluetooth messages
     try:
         time_prev = time.clock()
         time_next = None
         state_prev = State.initial()
         state_next = None
-
         bluetooth_manager.bluetooth_start()
         # Go through a prompt for connected the
         # tanks and get a dictionary of the tanks
@@ -83,65 +84,118 @@ def main():
 
         time_next = time.clock()
 
-
-        #Takes data from color tracking and converts it into a quaternion angle
-        #for orientation purposes.
-        placementData =  tracker.getTrackingInformation()
-        front = placementData[0] #Green Dot's X and Y aka Tank Front
-        back = placementData[1] #Pink/Red Dot's X and Y aka Tank Back
-        average = ((front[0]+back[0])/2, (front[1]+back[1])/2,) #X and Y of Tank Center
-        angle = placementData[2]#Orientation of Tank Back based on Tank Front
-
-        #Convert placementData into Quaternion Data
-        quaternionAngle = Quaternion.from_axis_angle(average[0], 0, average[1], angle)
-        # print quaternionAngle.a #Based off of Angle
-        # print quaternionAngle.i #Based Off of X
-        # print quaternionAngle.j #Based off of Y, should be 0.0 or -0.0
-        # print quaternionAngle.k #Based off of Z
-        
-
-
-        
         # Add all phones and tanks to the state
-        # i = 0
-        # for tank in connected_tanks.iterkeys():
-        #     print tank
-        #     state_next = state_prev.next(\
-        #             PlayerJoinEvent(Uuid.generate(),
-        #                 Player(Uuid.generate(),
-        #                        btmac = connected_phones[i],
-        #                        tank = Tank(Uuid.generate(),
-        #                                    btmac = tank))),
-        #                        time_prev, time_next - time_prev)
-        #     i += 1
+        i = 0
+        for tank in connected_tanks.iterkeys():
+            print tank
+            state_next = state_prev.next(\
+                    PlayerJoinEvent(Uuid.generate(),
+                        Player(Uuid.generate(),
+                               btmac = connected_phones[i],
+                               tank = Tank(Uuid.generate(),
+                                           btmac = tank))),
+                               time_prev, time_next - time_prev)
+            i += 1
 
-        # if len(tank) == 0:
-        #     state_prev = state_next
-        #     time_prev = time_next
+        if len(connected_tanks) != 0:
+            state_prev = state_next
+            time_prev = time_next
+        # Work around for if 2 phones are connected but no tanks are.
+        # This allows all bytes sent to the tank to be displayed on
+        # another device
+        elif (len(connected_phones) == 2):
+            state_next = state_prev.next(\
+                    PlayerJoinEvent(Uuid.generate(),
+                        Player(Uuid.generate(),
+                               btmac = connected_phones[0],
+                               tank = Tank(Uuid.generate(),
+                                           btmac = connected_phones[1]))),
+                               time_prev, time_next - time_prev)
 
-        # while state_prev.is_running():
-        #     try:
-        #         bt_data = main_bluetooth_receive_channel.receive_exn()
-        #         assert type(bt_data) is dict
-        #         print bt_data
-        #     except ReceiveException:
-        #         pass
-        #     '''
-        #     time_next = time.clock()
-        #     state_next = state_prev.next([], time_prev, time_next - time_prev)
-        #     state_prev = state_next
-        #     time_prev = time_next
-        #     '''
-        #     if isinstance(state_next, State):
-        #         print json.dumps(state_next.to_json(),
-        #                          sort_keys = True,
-        #                          indent = 4,
-        #                          separators = (', ', ': '))
+        # TESTING
+        time_next = time.clock()
+        state_next = state_prev.next(
+                GameStartEvent(Uuid.generate()),
+                time_prev,
+                time_next - time_prev)
+        state_prev = state_next
+        time_prev = time_next
+
+        while state_prev.is_running():
+            start_time = time.clock()
+            try:
+                bt_data = main_bluetooth_receive_channel.receive_exn()
+                assert type(bt_data) is dict
+                for btmac,data in bt_data.iteritems():
+#                    print {btmac: data}
+                    jsons = []
+                    json_single = ""
+                    # this will break up the received data into
+                    # multiple jsons if needed.
+                    for i in range(len(data)):
+                        json_single+= data[i]
+                        if data[i] == '}':
+                            jsons.append(json_single)
+                            json_single = ""
+                    for string in jsons:
+#                        print string
+                        json_data = json.loads(string)
+                        time_next = time.clock()
+                        state_next = state_prev.next(
+                                BluetoothEvent.from_json(json_data, btmac),
+                                time_prev,
+                                time_next - time_prev)
+                        state_prev = state_next
+                        time_prev = time_next
+            except ReceiveException:
+                pass
+
+            bluetooth_data, state_next = state_next.bluetooth_info()
+            main_bluetooth_send_channel.send(bluetooth_data)
+
+            #Takes data from color tracking and converts it into a quaternion angle
+            #for orientation purposes.
+            placementData =  tracker.getTrackingInformation()
+            front = placementData[0] #Green Dot's X and Y aka Tank Front
+            back = placementData[1] #Pink/Red Dot's X and Y aka Tank Back
+            average = ((front[0]+back[0])/2, (front[1]+back[1])/2,) #X and Y of Tank Center
+            angle = placementData[2]#Orientation of Tank Back based on Tank Front
+
+            #Convert placementData into Quaternion Data
+            quaternionAngle = Quaternion.from_axis_angle(average[0], 0, average[1], angle)
+            # print quaternionAngle.a #Based off of Angle
+            # print quaternionAngle.i #Based Off of X
+            # print quaternionAngle.j #Based off of Y, should be 0.0 or -0.0
+            # print quaternionAngle.k #Based off of Z
+
+            '''
+            time_next = time.clock()
+            state_next = state_prev.next([], time_prev, time_next - time_prev)
+            state_prev = state_next
+            time_prev = time_next
+            '''
+            if isinstance(state_next, State):
+                current_json =  json.dumps(state_next.to_json(),
+                                 sort_keys = True,
+                                 indent = 4,
+                                 separators = (', ', ': '))
+        #        main_unity_send_channel.send(current_json)
+                print current_json
+            s.send(current_json)
+            s.send("\x03")
+            '''
+            delta_time = time.clock() - start_time
+            if (delta_time < (1/60.)):
+                time.sleep(1/60. - delta_time)
+                '''
 
     except KeyboardInterrupt:
-
+#        bluetooth_manager.bluetooth_stop()
+        s.send("\x04")
+        raw_input("Hit Enter")
+        time.sleep(1)
         thread.exit()
- 
+
 
     # Close the main thread
     thread.exit()

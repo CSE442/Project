@@ -8,6 +8,7 @@
 import time
 import json
 import math
+import struct
 
 class DictionaryUtil(object):
     @staticmethod
@@ -71,9 +72,9 @@ class Quaternion(object):
         i = normal.i
         j = normal.j
         k = normal.k
-        return Matrix3x3((1 - 2*j**2 - 2*k**2,  2*i*j - 2*k*a,  2*i*k + 2*j*a),
+        return Matrix3x3(((1 - 2*j**2 - 2*k**2,  2*i*j - 2*k*a,  2*i*k + 2*j*a),
                          (2*i*j + 2*a*k,  1 - 2*i**2 - 2*k**2,  2*j*k - 2*i*a),
-                         (2*i*k - 2*j*a,  2*j*k + 2*i*a,  1 - 2*i**2 - 2*j**2))
+                         (2*i*k - 2*j*a,  2*j*k + 2*i*a,  1 - 2*i**2 - 2*j**2)))
 
     @staticmethod
     def from_json(json):
@@ -227,7 +228,7 @@ class Vector3(object):
 
     @staticmethod
     def from_tuple(tuple):
-        return Vector4(tuple[0], tuple[1], tuple[2])
+        return Vector3(tuple[0], tuple[1], tuple[2])
 
     def list(self):
         return [self.x, self.y, self.z]
@@ -241,7 +242,7 @@ class Vector3(object):
 
     def distance(self, other):
         assert type(other) is Vector3
-        return sqrt((self.x - other.x) ** 2 +
+        return math.sqrt((self.x - other.x) ** 2 +
                     (self.y - other.y) ** 2 +
                     (self.z - other.z) ** 2)
 
@@ -281,18 +282,24 @@ class Orientation(object):
             angular = Quaternion.unit()):
         assert isinstance(linear, Vector3)
         assert isinstance(angular, Quaternion)
-        self.linear = linear
-        self.angular = angular
+        self._linear = linear
+        self._angular = angular
+
+    def linear(self):
+        return self._linear
+
+    def angular(self):
+        return self._angular
 
     @staticmethod
     def from_json(json):
-        return Orientation(Vector3.from_json(json.linear),
-                           Quaternion.from_json(json.angular))
+        return Orientation(Vector3.from_json(json._linear),
+                           Quaternion.from_json(json._angular))
 
     def to_json(self):
         return {
-            'linear': self.linear.to_json(),
-            'angular': self.angular.to_json()
+            'linear': self._linear.to_json(),
+            'angular': self._angular.to_json()
         }
 
 class Physics(object):
@@ -320,7 +327,6 @@ class Physics(object):
         by the specified 'delta_time'.
         """
         assert type(orientation) is Orientation
-        assert type(velocity) is Velocity
         assert type(delta_time) is float
         linear_velocity_delta = first_derivative.linear() + \
                 (second_derivative.linear() * delta_time)
@@ -341,16 +347,12 @@ class Uuid(object):
 class Bullet(object):
     def __init__():
         raise NotImplementedError()
-
     def orientation():
         raise NotImplementedError()
-
     def damage():
         raise NotImplementedError()
-
     def collision_radius():
         raise NotImplementedError()
-
     def advance():
         raise NotImplementedError()
 
@@ -375,11 +377,19 @@ class DefaultBullet(Bullet):
         assert type(damage) is int
         assert isinstance(orientation, Orientation)
         assert isinstance(orientation_delta, Orientation)
-        self.uuid = uuid
-        self.damage = damage
-        self.orientation = orientation
-        self.orientation_delta = orientation_delta
+        self._uuid = uuid
+        self._damage = damage
+        self._orientation = orientation
+        self._orientation_delta = orientation_delta
 
+    def uuid(self):
+        return self._uuid
+    def damage(self):
+        return self._damage
+    def orientation(self):
+        return self._orientation
+    def orientation_delta(self):
+        return self._orientation_delta
     def collision_radius(self):
         return 1.0
 
@@ -393,32 +403,29 @@ class DefaultBullet(Bullet):
     def to_json(self):
         return {
             'variant': 'DefaultBullet',
-            'uuid': self.uuid,
-            'damage': self.damage,
-            'orientation': self.orientation.to_json(),
-            'orientation_delta': self.orientation_delta.to_json()
+            'uuid': self._uuid,
+            'damage': self._damage,
+            'orientation': self._orientation.to_json(),
+            'orientation_delta': self._orientation_delta.to_json()
         }
 
     def advance(self, delta_time):
         assert type(delta_time) is float
-        orientation = Phsyics.project(orientation = self.orientation,
-                                      first_derivative = self.orientation_delta,
+        orientation = Physics.project(orientation = self._orientation,
+                                      first_derivative = self._orientation_delta,
                                       delta_time = delta_time)
-        return DefaultBullet(self.uuid,
-                             self.damage,
+        return DefaultBullet(self._uuid,
+                             self._damage,
                              orientation,
-                             self.orientation_delta)
+                             self._orientation_delta)
 
 class Weapon(object):
     def __init__():
         raise NotImplementedError()
-
     def uuid():
         raise NotImplementedError()
-
     def ammo():
         raise NotImplementedError()
-
     def fire():
         raise NotImplementedError()
 
@@ -441,9 +448,16 @@ class DefaultWeapon(Weapon):
         assert type(uuid) is int
         assert type(ammo) is int
         assert type(damage) is int
-        self.uuid = uuid
-        self.ammo = ammo
-        self.damage = damage
+        self._uuid = uuid
+        self._ammo = ammo
+        self._damage = damage
+
+    def uuid(self):
+        return self._uuid
+    def ammo(self):
+        return self._ammo
+    def damage(self):
+        return self._damage
 
     @staticmethod
     def from_json(self):
@@ -454,24 +468,24 @@ class DefaultWeapon(Weapon):
     def to_json(self):
         return {
             'variant': 'DefaultWeapon',
-            'uuid': self.uuid,
-            'ammo': self.ammo,
-            'damage': self.damage
+            'uuid': self._uuid,
+            'ammo': self._ammo,
+            'damage': self._damage
         }
 
     def fire(self, orientation = Orientation()):
         assert isinstance(orientation, Orientation)
         assert self.ammo >= 1
-        velocity_magnitude = Vector3(1, 0, 0)
+        velocity_magnitude = Vector3(1.0, 0.0, 0.0)
         velocity_angle = orientation.angular().matrix3x3()
         velocity = velocity_angle * velocity_magnitude
         orientation_delta = Orientation(linear = velocity)
         bullet = DefaultBullet(uuid = Uuid.generate(),
                                orientation = orientation,
                                orientation_delta = orientation_delta)
-        default_weapon = DefaultWeapon(uuid = self.uuid,
-                                       ammo = self.ammo - 1,
-                                       damage = self.damage)
+        default_weapon = DefaultWeapon(uuid = self._uuid,
+                                       ammo = self._ammo - 1,
+                                       damage = self._damage)
         return (default_weapon, bullet)
 
 class Turret(object):
@@ -483,9 +497,16 @@ class Turret(object):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
         assert isinstance(weapon, Weapon)
-        self.uuid = uuid
-        self.orientation = orientation
-        self.weapon = weapon
+        self._uuid = uuid
+        self._orientation = orientation
+        self._weapon = weapon
+
+    def uuid(self):
+        return self._uuid
+    def orientation(self):
+        return self._orientation
+    def weapon(self):
+        return self._weapon
 
     @staticmethod
     def from_json(json):
@@ -495,9 +516,9 @@ class Turret(object):
 
     def to_json(self):
         return {
-            'uuid': self.uuid,
-            'orientation': self.orientation.to_json(),
-            'weapon': self.weapon.to_json()
+            'uuid': self._uuid,
+            'orientation': self._orientation.to_json(),
+            'weapon': self._weapon.to_json()
         }
 
 class Tank(object):
@@ -508,19 +529,35 @@ class Tank(object):
             turret = Turret(Uuid.generate()),
             health = 10,
             btmac = "",
+            motorspeeds = ""
             ):
         assert type(uuid) is int
         assert isinstance(orientation, Orientation)
         assert isinstance(turret, Turret)
         assert type(health) is int
-        self.uuid = uuid
-        self.orientation = orientation
-        self.turret = turret
-        self.health = health
-        self.btmac = btmac
+        self._uuid = uuid
+        self._orientation = orientation
+        self._turret = turret
+        self._health = health
+        self._btmac = btmac
+        self._motorspeeds = motorspeeds
 
+    def uuid(self):
+        return self._uuid
+    def btmac(self):
+        return self._btmac
     def is_alive(self):
-        return self.health > 0
+        return self._health > 0
+    def turret(self):
+        return self._turret
+    def health(self):
+        return self._health
+    def orientation(self):
+        return self._orientation
+    def motorspeeds(self):
+        return self._motorspeeds
+    def collision_radius(self):
+        return 1.0
 
     @staticmethod
     def from_json(json):
@@ -528,32 +565,30 @@ class Tank(object):
                     Orientation.from_json(json['orientation']),
                     Turret.from_json(json['turret']),
                     json['health'],
-                    json['btmac'])
+                    json['btmac'],
+                    json['motorspeeds'])
 
     def to_json(self):
         return {
-            'uuid': self.uuid,
-            'orientation': self.orientation.to_json(),
-            'turret': self.turret.to_json(),
-            'health': self.health,
-            'btmac': self.btmac
+            'uuid': self._uuid,
+            'orientation': self._orientation.to_json(),
+            'turret': self._turret.to_json(),
+            'health': self._health,
+            'btmac': self._btmac,
+            'motorspeeds': self._motorspeeds
         }
 
     def take_damage(self, damage = 0):
         assert type(damage) is int
-        if damage >= self.health:
+        if damage >= self.health():
             return Tank(uuid = self.uuid(),
                         orientation = self.orientation(),
                         turret = self.turret(),
                         health = 0)
         else:
             return Tank(uuid = self.uuid(),
-                        orientation = self.orientation(),
-                        turret = self.turret(),
+                        orientation = self.orientation(), turret = self.turret(),
                         health = self.health() - damage)
-
-    def collision_radius(self):
-        return 1.0
 
 class Player(object):
     def __init__(
@@ -563,9 +598,16 @@ class Player(object):
             btmac = ""):
         assert type(uuid) is int
         assert isinstance(tank, Tank)
-        self.uuid = uuid
-        self.btmac = btmac
-        self.tank = tank
+        self._uuid = uuid
+        self._btmac = btmac
+        self._tank = tank
+
+    def btmac(self):
+        return self._btmac
+    def tank(self):
+        return self._tank
+    def uuid(self):
+        return self._uuid
 
     @staticmethod
     def from_json(json):
@@ -575,9 +617,9 @@ class Player(object):
 
     def to_json(self):
         return {
-            'uuid': self.uuid,
-            'tank': self.tank.to_json(),
-            'btmac': self.btmac
+            'uuid': self._uuid,
+            'tank': self._tank.to_json(),
+            'btmac': self._btmac
         }
 
 class Prefab(object):
@@ -587,7 +629,6 @@ class Prefab(object):
         TODO: we do not yet have any prefabs
         """
         raise IllegalVariantError(json['variant'])
-
     def to_json():
         raise NotImplementedError()
 
@@ -595,33 +636,199 @@ class Prefab(object):
 class IllegalVariantError(Exception):
     def __init__(variant):
         self._variant = variant
-
     def variant(self):
         return self._variant
-
     def __str__(self):
         return repr(self._variant)
 
 class Event(object):
     def __init__():
         raise NotImplementedError()
-
     def uuid():
         raise NotImplementedError()
 
     @staticmethod
     def from_json(json):
-        if json.variant == 'PlayerJoinEvent':
+        if json['variant'] == 'PlayerJoinEvent':
             return PlayerJoinEvent.from_json(json)
-        elif json.variant == 'PlayerFireEvent':
+        elif json['variant'] == 'PlayerFireEvent':
             return PlayerFireEvent.from_json(json)
-        elif json.variant == 'GameStartEvent':
+        elif json['variant'] == 'GameStartEvent':
             return GameStartEvent.from_json(json)
         else:
             raise IllegalVariantError()
 
     def to_json():
         raise NotImplementedError()
+
+class BluetoothEvent(Event):
+    def __init__():
+        raise NotImplementedError()
+    def uuid():
+        raise NotImplementedError()
+
+    @staticmethod
+    def from_json(json, btmac):
+        if json['variant'] == 'BluetoothTankSelectEvent':
+            return BluetoothSelectTankEvent.from_json(json, btmac)
+        elif json['variant'] == 'BluetoothFireEvent':
+            return BluetoothFireEvent.from_json(json, btmac)
+        elif json['variant'] == 'BluetoothTankMoveEvent':
+            return BluetoothTankMoveEvent.from_json(json, btmac)
+        elif json['variant'] == 'BluetoothTurretMoveEvent':
+            return BluetoothTurretMoveEvent.from_json(json, btmac)
+        else:
+            raise IllegalVariantError()
+
+    def to_json():
+        raise NotImplementedError()
+
+class BluetoothSelectTankEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac,
+            tank_btmac):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._tank_btmac = tank_btmac
+        self._phone_btmac = phone_btmac
+
+    def uuid(self):
+        return self._uuid
+    def phone_btmac(self):
+        return self._phone_btmac
+    def tank_btmac(self):
+        return self._tank_btmac
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+        return BluetoothSelectTankEvent(
+                Uuid.generate(),
+                phone_btmac,
+                json['tank_btmac'])
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothSelectTankEvent',
+                'tank_btmac': self._tank_btmac
+        }
+
+class BluetoothFireEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._phone_btmac = phone_btmac
+
+    def uuid(self):
+        return self._uuid
+    def phone_btmac(self):
+        return self._phone_btmac
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+        return BluetoothFireEvent(
+                Uuid.generate(),
+                phone_btmac)
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothFireEvent'
+        }
+
+class BluetoothTankMoveEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac,
+            motorspeeds):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._phone_btmac = phone_btmac
+        self._motorspeeds = motorspeeds
+
+    def uuid(self):
+        return self._uuid
+    def phone_btmac(self):
+        return self._phone_btmac
+    def motorspeeds(self):
+        return self._motorspeeds
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+            return BluetoothTankMoveEvent(
+                    Uuid.generate(),
+                    phone_btmac,
+                    json['motorspeeds'])
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothTankMoveEvent',
+                'uuid': self._uuid,
+                'motorspeeds': self._motorspeeds
+        }
+
+class BluetoothTurretMoveEvent(BluetoothEvent):
+    def __init__(
+            self,
+            uuid,
+            phone_btmac,
+            angle):
+        assert type(uuid) is int
+        self._uuid = uuid
+        self._phone_btmac = phone_btmac
+        self._angle = angle
+
+    def uuid(self):
+        return self._uuid
+    def phone_btmac(self):
+        return self._phone_btmac
+    def angle(self):
+        return self._angle
+
+    @staticmethod
+    def from_json(json, phone_btmac):
+            return BluetoothTurretMoveEvent(
+                    Uuid.generate(),
+                    phone_btmac,
+                    json['angle'])
+
+    def to_json(self):
+        return {
+                'variant': 'BluetoothTurretMoveEvent',
+                'angle': self._angle
+        }
+
+class SendAvailableTanks(Event):
+    def __init__(
+            self,
+            uuid,
+            initial_btmacs
+            ):
+        self._uuid = uuid
+        self._inital_btmacs = initial_btmacs
+
+    def uuid(self):
+        return self._uuid
+    def initial_btmacs(self):
+        return self._initial_btmacs
+
+    @staticmethod
+    def from_json(json):
+        return SendAvailableTanks(
+                json['uuid'],
+                json['initial_btmacs']
+                )
+
+    def to_json(json):
+        return {
+                'variant': 'SendAvailableTanks',
+                'uuid': self._uuid,
+                'initial_btmacs': self._initial_btmacs
+        }
 
 class DirectionalKeyPushEvent(Event):
     def __init__(
@@ -639,7 +846,6 @@ class DirectionalKeyPushEvent(Event):
 
     def uuid(self):
         return self._uuid
-
     def keycode(self):
         return self._keycode
 
@@ -678,8 +884,13 @@ class PlayerJoinEvent(Event):
             player = Player(Uuid.generate())):
         assert type(uuid) is int
         assert isinstance(player, Player)
-        self.uuid = uuid
-        self.player = player
+        self._uuid = uuid
+        self._player = player
+
+    def uuid(self):
+        return self._uuid
+    def player(self):
+        return self._player
 
     @staticmethod
     def from_json(json):
@@ -689,8 +900,8 @@ class PlayerJoinEvent(Event):
     def to_json(self):
         return {
             'variant': 'PlayerJoinEvent',
-            'uuid': self.uuid,
-            'player': self.player
+            'uuid': self._uuid,
+            'player': self._player
         }
 
 class PlayerFireEvent(Event):
@@ -700,8 +911,8 @@ class PlayerFireEvent(Event):
             player_uuid = 0):
         assert type(uuid) is int
         assert type(player_uuid) is int
-        self.uuid = uuid
-        self.player_uuid = player_uuid
+        self._uuid = uuid
+        self._player_uuid = player_uuid
 
     @staticmethod
     def from_json(json):
@@ -711,8 +922,8 @@ class PlayerFireEvent(Event):
     def to_json(self):
         return {
             'variant': 'PlayerFireEvent',
-            'uuid': self.uuid,
-            'player_uuid': self.player_uuid
+            'uuid': self._uuid,
+            'player_uuid': self._player_uuid
         }
 
 class GameStartEvent(Event):
@@ -720,10 +931,10 @@ class GameStartEvent(Event):
             self,
             uuid):
         assert type(uuid) is int
-        self.uuid = uuid
+        self._uuid = uuid
 
     def uuid(self):
-        return self.uuid
+        return self._uuid
 
     @staticmethod
     def from_json(json):
@@ -732,7 +943,7 @@ class GameStartEvent(Event):
     def to_json(self):
         return {
             'variant': 'GameStartEvent',
-            'uuid': self.uuid
+            'uuid': self._uuid
         }
 
 class State(object):
@@ -745,10 +956,8 @@ class State(object):
 
     def uuid(self):
         raise NotImplementedError()
-
     def next(self, events, time, elapsed_time):
         raise NotImplementedError()
-
     def is_running(self):
         raise NotImplementedError()
 
@@ -781,15 +990,56 @@ class LobbyState(State):
 
     def uuid(self):
         return self._uuid
+    def is_running(self):
+        return self._is_running
 
     def next(self, event, time, elapsed_time):
         if isinstance(event, PlayerJoinEvent):
-            self._players.update({event.player.uuid : event.player})
+            self._players.update({event.player().uuid() : event.player()})
             return LobbyState(self._uuid, self._players)
+        if isinstance(event, BluetoothSelectTankEvent):
+            for uuid,player in self._players.iteritems():
+                if player.btmac() == event.phone_btmac():
+                    # TODO ensure a tank is only owned by one person
+                    # TODO send json to all phones with updated tanks information
+                    # for testing purposes (REMOVE)
+                    if True or player.tank().btmac() == "":
+                        self._players[uuid] = Player(player.uuid(),
+                                                     btmac = player.btmac(),
+                                                     tank = Tank(player.tank().uuid(),
+                                                     btmac = event.tank_btmac()))
+            return LobbyState(self._uuid, self._players)
+        if isinstance(event, GameStartEvent):
+            for player_uuid, player in self._players.iteritems():
+                tank = player.tank()
+                turret = tank.turret()
+                weapon = DefaultWeapon(
+                        uuid = turret.weapon().uuid(),
+                        ammo = 10,
+                        damage = 1
+                        )
+                new_player = Player(
+                            uuid = player.uuid(),
+                            tank = Tank(
+                                uuid = tank.uuid(),
+                                orientation = tank.orientation(),
+                                turret = Turret(
+                                    turret.uuid(),
+                                    orientation = turret.orientation(),
+                                    weapon = weapon
+                                    ),
+                                health = tank.health(),
+                                btmac = tank.btmac(),
+                                motorspeeds = tank.motorspeeds()
+                                ),
+                           btmac = player.btmac()
+                           )
+                self._players[player_uuid] = new_player
+
+            return ActiveMatchState(self._uuid, self._players)
         else:
             raise NotImplementedError()
-    def is_running(self):
-        return self._is_running
+        return LobbyState(self._uuid, self._players)
 
     @staticmethod
     def from_json(json):
@@ -809,16 +1059,14 @@ class QuitState(State):
             self,
             uuid):
         assert type(uuid) is int
-        self.uuid = uuid
+        self._uuid = uuid
 
     def uuid(self):
-        return self.uuid
-
-    def next(self, events, time, elapsed_time):
-        return QuitState()
-
+        return self._uuid
     def is_running(self):
         return False
+    def next(self, events, time, elapsed_time):
+        return QuitState()
 
     @staticmethod
     def from_json(json):
@@ -827,7 +1075,7 @@ class QuitState(State):
     def to_json(self):
         return {
             'variant': 'QuitState',
-            'uuid': self.uuid
+            'uuid': self._uuid
         }
 
 class ActiveMatchState(State):
@@ -836,23 +1084,54 @@ class ActiveMatchState(State):
             uuid,
             players = {},
             projectiles = {},
-            prefabs = {}):
+            prefabs = {},
+            is_running = True):
         assert type(uuid) is int
-        for player in players:
+        for player in players.itervalues():
             assert type(player) is Player
-        self.uuid = uuid
-        self.players = players
-        self.projectiles = projectiles
-        self.prefabs = prefabs
+        self._uuid = uuid
+        self._players = players
+        self._projectiles = projectiles
+        self._prefabs = prefabs
+        self._is_running = is_running
 
+    def uuid(self):
+        return self._uuid
+    def is_running(self):
+        return self._is_running
     def player(self, uuid):
-        return self.players[uuid]
-
+        return self._players[uuid]
     def projectile(self, uuid):
-        return self.projectiles[uuid]
-
+        return self._projectiles[uuid]
     def prefab(self, uuid):
-        return self.prefabs[uuid]
+        return self._prefabs[uuid]
+
+    def bluetooth_info(self):
+        bluetooth_data = {}
+        for player_uuid,player in self._players.iteritems():
+            tank = player.tank()
+            if tank.motorspeeds() != "":
+                bluetooth_data[tank.btmac()] =\
+                        struct.pack('b',int(tank.motorspeeds()))
+                new_player = Player(
+                            uuid = player.uuid(),
+                            tank = Tank(
+                                tank.uuid(),
+                                orientation = tank.orientation(),
+                                turret = tank.turret(),
+                                health = tank.health(),
+                                btmac = tank.btmac(),
+                                motorspeeds = ""
+                                ),
+                           btmac = player.btmac()
+                           )
+                self._players[player_uuid] = new_player
+        return bluetooth_data, ActiveMatchState(
+                                        self._uuid,
+                                        self._players,
+                                        self._projectiles,
+                                        self._prefabs
+                                        )
 
     @staticmethod
     def from_json(json):
@@ -867,53 +1146,136 @@ class ActiveMatchState(State):
     def to_json(self):
         return {
             'variant': 'ActiveMatchState',
-            'uuid': self.uuid,
-            'players': DictionaryUtil.to_json(self.players),
-            'projectiles': DictionaryUtil.to_json(self.projectiles),
-            'prefabs': DictionaryUtil.to_json(self.prefabs)
+            'uuid': self._uuid,
+            'players': DictionaryUtil.to_json(self._players),
+            'projectiles': DictionaryUtil.to_json(self._projectiles),
+            'prefabs': DictionaryUtil.to_json(self._prefabs)
         }
 
-    def next(self, events, time, delta_time):
+    def next(self, event, time, delta_time):
         """
         move the projectiles
         detect collisions between tanks and projectiles
         perform those operations
         """
-        print time, delta_time
-        projectiles = advance_projectiles(self.projectiles(), delta_time)
+#        print time, delta_time
+        projectiles = ActiveMatchState.advance_projectiles(
+                self._projectiles,
+                delta_time)
         tanks = {}
-        for player_uuid, player in self.players():
+        for player_uuid, player in self._players.iteritems():
             tank = player.tank()
             tanks[tank.uuid()] = tank
-        collisions = tank_projectile_collisions(tanks, projectiles)
+        collisions = ActiveMatchState.tank_projectile_collisions(tanks, projectiles)
         damaged_tanks = {}
-        for tank_uuid, tank in tanks:
-            if tank_uuid in collisions:
+        for tank_uuid, tank in tanks.iteritems():
+            if tank_uuid in collisions.iterkeys():
                 projectile_uuid = collisions[tank_uuid]
-                projectile = projeciles[projectile_uuid]
-                damaged_tanks[tank_uuid] = tank.take_damage(projectile.damage)
+                projectile = projectiles[projectile_uuid]
+                damaged_tanks[tank_uuid] = tank.take_damage(projectile.damage())
             else:
                 damaged_tanks[tank_uuid] = tank
-        remaining_players = {}
-        for player_uuid, player in self.players():
+        remaining_players = self._players
+        for player_uuid, player in self._players.iteritems():
             player_tank = damaged_tanks[player.tank().uuid()]
             remaining_players[player_uuid] = Player(uuid = player.uuid(),
-                                                    tank = player_tank)
-        remaining_projectiles = {}
-        for projectile_uuid, projectile in projectiles:
+                                                    tank = player_tank,
+                                                    btmac = player.btmac())
+        remaining_projectiles = self._projectiles
+        for projectile_uuid, projectile in projectiles.iteritems():
             if projectile_uuid not in collisions.values():
                 remaining_projectiles[projectile_uuid] = projectile
+
+        if isinstance(event, BluetoothFireEvent):
+            for player_uuid, player in self._players.iteritems():
+                if player.btmac() == event.phone_btmac():
+                    if player.tank().turret().weapon().ammo() >= 1:
+                        tank           = player.tank()
+                        turret         = player.tank().turret()
+                        orientation    = turret.orientation()
+                        weapon, bullet = turret.weapon().fire(orientation)
+                        new_player = Player(
+                                    uuid = player.uuid(),
+                                    tank = Tank(
+                                        uuid = tank.uuid(),
+                                        orientation = tank.orientation(),
+                                        turret = Turret(
+                                            turret.uuid(),
+                                            orientation = turret.orientation(),
+                                            weapon = weapon
+                                            ),
+                                        health = tank.health(),
+                                        btmac = tank.btmac(),
+                                        motorspeeds = tank.motorspeeds()
+                                        ),
+                                   btmac = player.btmac()
+                                   )
+                        remaining_projectiles[bullet.uuid()] = bullet
+                        remaining_players[player_uuid] = new_player
+
+        if isinstance(event, BluetoothTankMoveEvent):
+            for player_uuid, player in self._players.iteritems():
+                if player.btmac() == event.phone_btmac():
+                    tank = player.tank()
+                    turret = tank.turret()
+                    new_player = Player(
+                                uuid = player.uuid(),
+                                tank = Tank(
+                                    uuid = tank.uuid(),
+                                    orientation = tank.orientation(),
+                                    turret = turret,
+                                    health = tank.health(),
+                                    btmac = tank.btmac(),
+                                    motorspeeds = str(event.motorspeeds())
+                                    ),
+                               btmac = player.btmac()
+                               )
+                    remaining_players[player_uuid] = new_player
+
+        if isinstance(event, BluetoothTurretMoveEvent):
+            for player_uuid, player in self._players.iteritems():
+                if player.btmac() == event.phone_btmac():
+                    # event.angle() will give the angle of the turret
+                    # update turret angle for the given player
+                    if remaining_players.has_key(player_uuid):
+                        # a whole lot of shit just to change the orientation of
+                        # the turret, probably a bug or two in here
+                        tank = player.tank()
+                        turret = tank.turret()
+                        static_rotation   = Quaternion.from_axis_angle(0.0, 0.0, 1.0, math.pi)
+                        my_rotation       = Quaternion.from_axis_angle(0.0, 1.0, 0.0, event.angle()*math.pi / 180.0)
+                        combined_rotation = static_rotation * my_rotation
+                        orientation = Orientation(linear  = turret.orientation().linear(),
+                                                  angular = combined_rotation)
+                        new_player = Player(
+                                uuid = player.uuid(),
+                                tank = Tank(
+                                    tank.uuid(),
+                                    orientation = tank.orientation(),
+                                    turret = Turret(
+                                        uuid = turret.uuid(),
+                                        orientation = orientation,
+                                        weapon = turret.weapon()
+                                        ),
+                                    health = tank.health(),
+                                    btmac = tank.btmac(),
+                                    motorspeeds = tank.motorspeeds()
+                                    ),
+                               btmac = player.btmac()
+                               )
+                        remaining_players[player_uuid] = new_player
+
         return ActiveMatchState(uuid = self.uuid(),
                                 players = remaining_players,
                                 projectiles = remaining_projectiles,
-                                prefabs = self.prefabs())
+                                prefabs = self._prefabs)
 
     @staticmethod
     def advance_projectiles(projectiles, delta_time):
         assert type(projectiles) is dict
         assert type(delta_time) is float
         result = {}
-        for uuid, projectile in projectiles:
+        for uuid, projectile in projectiles.iteritems():
             assert type(uuid) is int
             assert isinstance(projectile, Bullet)
             result[uuid] = projectile.advance(delta_time)
@@ -922,13 +1284,13 @@ class ActiveMatchState(State):
     @staticmethod
     def tank_projectile_collisions(tanks, projectiles):
         collisions = {}
-        for tank_uuid, tank in tanks:
-            for projectile_uuid, projectile in projectiles:
+        for tank_uuid, tank in tanks.iteritems():
+            for projectile_uuid, projectile in projectiles.iteritems():
                 tank_position = tank.orientation().linear()
                 projectile_position = projectile.orientation().linear()
                 collision_radius = tank.collision_radius() + \
                                    projectile.collision_radius()
-                if Phsyics.entities_do_collide(tank_position,
+                if Physics.entities_do_collide(tank_position,
                                                projectile_position,
                                                collision_radius):
                     collisions[tank_uuid] = projectile_uuid

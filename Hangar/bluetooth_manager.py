@@ -65,6 +65,7 @@ class BluetoothManager(object):
         Will turn it off if linux.
         """
         self.connection_close()
+        bluetooth.stop_advertising(self.server_sock)
         self.server_sock.close()
         if os.name == "posix":
             subprocess.call(['hciconfig', 'hci0', 'noscan', 'down'])
@@ -125,7 +126,7 @@ class BluetoothManager(object):
 #                      }
         return nearby_devices
 
-    def connect_device(self, btmac,\
+    def connect_device(self, btmac,
                        uuid = "00001101-0000-1000-8000-00805F9B34FB"):
 
         """connect_device will attempt a connection to
@@ -138,7 +139,7 @@ class BluetoothManager(object):
 
         """
 
-        device = bluetooth.find_service(uuid = uuid, address = btmac)
+        device = bluetooth.find_service(address = btmac, uuid = uuid)
 
         if len(device) == 0:
             return False
