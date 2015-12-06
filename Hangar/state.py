@@ -7,6 +7,7 @@
 
 import time
 import json
+import math
 
 class DictionaryUtil(object):
     @staticmethod
@@ -42,20 +43,20 @@ class Quaternion(object):
 
     @staticmethod
     def from_axis_angle(x = 0.0, y = 0.0, z = 0.0, angle = 0.0):
-        normal = sqrt(x**2 + y**2 + z**2)
+        normal = math.sqrt(x**2 + y**2 + z**2)
         normal_x = x / normal
         normal_y = y / normal
         normal_z = z / normal
-        return Quaternion(cos(angle/2),
-                          normal_x * sin(angle/2),
-                          normal_y * sin(angle/2),
-                          normal_z * sin(angle/2))
+        return Quaternion(math.cos(angle/2),
+                          normal_x * math.sin(angle/2),
+                          normal_y * math.sin(angle/2),
+                          normal_z * math.sin(angle/2))
 
     def tuple(self):
         return (self.a, self.i, self.j, self.k)
 
     def normalize(self):
-        n = sqrt(self.a * self.a +
+        n = math.sqrt(self.a * self.a +
                  self.i * self.i +
                  self.j * self.j +
                  self.k * self.k)

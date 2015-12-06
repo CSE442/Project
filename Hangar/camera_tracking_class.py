@@ -49,14 +49,27 @@ def isPink(blue, green, red):
     else:
         return False
 
+class carPlacement(object):
+	def __init__(self,front, back, angle):
+		self.front = front
+		self.back = back
+		self.angle = angle
+
+		self.avgX = ((front[0]+back[0])/2)
+		self.avgY = ((front[1]+back[1])/2)
+		self.position = (avgX,avgY)
+
+
+
 
 class camera_thread(threading.Thread):#subclass of thread
 	def __init__(self):
 		threading.Thread.__init__(self)
 		self.colorDetectionList= {}
+		self.placementData = ((0.0,0.0),(0.0,0.0),0.0)
 
 	def getTrackingInformation(self):
-		return self.colorDetectionList
+		return self.placementData
 
 	def run(self):
 		camera = cv2.VideoCapture(0)
@@ -698,11 +711,11 @@ class camera_thread(threading.Thread):#subclass of thread
 		        self.colorDetectionList['redX']=coordinateRedY
 		        self.colorDetectionList['redY']=coordinateRedX 
 
-		    if greenExists and redExists:
+		    if greenFound and redFound:
 		        deltaY=averageGreenY-averageRedY
 		        deltaX=averageGreenX-averageRedX
-		        if (deltaY>0):
-		            angleInDegrees = math.atan2(deltaX,deltaY) * 180 / math.pi
+		        if (True):
+		            angleInDegrees = math.atan2(deltaY,deltaX) +math.pi/2
 		        self.colorDetectionList['Red To Green']=angleInDegrees
 
 		    outputImg = emptyImg
@@ -732,9 +745,12 @@ class camera_thread(threading.Thread):#subclass of thread
 		                if x>0 and x<width and y>0 and y < height:
 		                    outputImg[x, y] = (0,0,255)
 		    imageCounter = imageCounter +1 
+		    self.placementData = ((coordinateGreenY,coordinateGreenX),(coordinateRedY,coordinateRedX),angleInDegrees)
 		    
-		    if start_time != time.time(): 
-		        self.colorDetectionList['---fps---']= 1/(time.time() - start_time)
+
+
+		    # if start_time != time.time(): 
+		    #     self.colorDetectionList['---fps---']= 1/(time.time() - start_time)
 
 		    #send_channel.send(self.colorDetectionList)
 

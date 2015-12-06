@@ -16,8 +16,8 @@ from   main_bluetooth    import *
 from   message_generator import MessageGenerator
 from   bluetooth_manager import BluetoothManager
 #######import colorOptimizatiom_2 as camera
-#import camera_tracking_class
-import camera_tracking_class_rewrite
+import camera_tracking_class
+#import camera_tracking_class_rewrite
 
 def main():
     # Create the communication channels between threads
@@ -51,10 +51,9 @@ def main():
                                                   , unity_receive_channel
                                                   ))
 
-    tracker=camera_tracking_class_rewrite.camera_thread()
+    tracker=camera_tracking_class.camera_thread()
     tracker.start()
     print "I MADE IT"
-    print tracker.getTrackingInformation()
     # Spawn the Tracking camera thread
    ######## tracking_camera_id=thread.start_new_thread(camera.Tracker, (tracking_channel_send,)) 
     #key values 
@@ -103,9 +102,24 @@ def main():
         #####DELTE ME YOU FOOL
         print "I MADE IT AGAIN"
         
-        while True:
-            print tracker.getTrackingInformation()
+        #Takes data from color tracking and converts it into a quaternion angle
+        #for orientation purposes.
+        placementData =  tracker.getTrackingInformation()
+        front = placementData[0] #Green Dot's X and Y aka Tank Front
+        back = placementData[1] #Pink/Red Dot's X and Y aka Tank Back
+        average = ((front[0]+back[0])/2, (front[1]+back[1])/2,) #X and Y of Tank Center
+        angle = placementData[2]#Orientation of Tank Back based on Tank Front
 
+        #Convert placementData into Quaternion Data
+        quaternionAngle = Quaternion.from_axis_angle(average[0], 0, average[1], angle)
+        # print quaternionAngle.a #Based off of Angle
+        # print quaternionAngle.i #Based Off of X
+        # print quaternionAngle.j #Based off of Y, should be 0.0 or -0.0
+        # print quaternionAngle.k #Based off of Z
+        
+
+
+        
         # Add all phones and tanks to the state
         # i = 0
         # for tank in connected_tanks.iterkeys():
