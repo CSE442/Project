@@ -8,17 +8,373 @@ using SimpleJSON;
 using System.IO;
 using System.Collections.Generic;
 
-   /*	
-	*	Tank Controll.cs
-	*	Meniacle Matt and the Angry Avenue 
-	*	Written By Jacob Wagner and Matt Winnick
-	*	CSE-442 Clear Sunglasses
-	*/
+/*	
+ *	Tank Controll.cs
+ *	Meniacle Matt and the Angry Avenue 
+ *	Written By Jacob Wagner and Matt Winnick
+ *	CSE-442 Clear Sunglasses
+ */
 
 // TODO: Make a class to hold certain tank information.
 // TODO: Make a class to hold certain turret information.
 
-public struct TankData{
+public class TankControl : MonoBehaviour
+{
+    private StructRef<State> stateRef;
+    private bool tcpThreadIsRunning;
+    public GameObject Tank;
+    public GameObject Turret;
+
+    void Start()
+    {
+        tcpThreadIsRunning = true;
+        stateRef = new StructRef<State>(State.Empty());
+        Thread connectionThread = new Thread(() =>
+        {
+            IPEndPoint localEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 33333);
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.Bind(localEndpoint);
+            socket.Listen(10);
+            Socket activeSocket = socket.Accept();
+            while (tcpThreadIsRunning)
+            {
+                String accumulatedMessage = "";
+                byte[] messageBuffer = new byte[4096];
+                int messageLength = activeSocket.Receive(messageBuffer);
+                int chopIndex = 0;
+                Debug.Assert(messageLength > 0);
+                for (int messageByteIndex = 0; messageByteIndex < messageLength; messageByteIndex ++)
+                {
+                    byte messageByte = messageBuffer[messageByteIndex];
+                    if (messageByte == 0x03)
+                    {
+                        chopIndex = messageByteIndex;
+                        String messageTail = Encoding.ASCII.GetString(messageBuffer, 0, messageByteIndex);
+                        String fullMessage = accumulatedMessage + messageTail;
+                        JSONNode messageJSON = JSONNode.Parse(fullMessage);
+                        this.stateRef.Data = State.fromJSON(messageJSON);
+                    }
+                    else if (messageByte == 0x00)
+                    {
+                        tcpThreadIsRunning = false;
+                        break;
+                    }
+                }
+                int chopLength = messageLength - chopIndex;
+                Debug.Assert(chopLength >= 0);
+                accumulatedMessage += Encoding.ASCII.GetString(messageBuffer, chopIndex, chopLength);
+            }
+        });
+        connectionThread.Start();
+    }
+
+    void Update()
+    {
+        print("hello there");
+        State atomicState = this.stateRef.Data;
+        Player player = atomicState.players.Values.GetEnumerator().Current;
+        Tank tank = player.tank;
+        Turret turret = tank.turret;
+
+        this.Tank.transform.position = tank.orientation.position;
+        this.Tank.transform.rotation = tank.orientation.angle;
+        this.Turret.transform.rotation = turret.relativeOrientation.angle;
+    }
+
+    void onDestroy()
+    {
+        this.tcpThreadIsRunning = false;
+    }
+}
+
+class StructRef<DataType> where DataType : struct
+{
+    private Mutex _Lock;
+    private DataType _Data;
+    public DataType Data
+    {
+        get
+        {
+            if (this._Lock.WaitOne())
+            {
+                DataType Result = this._Data;
+                this._Lock.ReleaseMutex();
+                return Result;
+            }
+            else
+            {
+                throw new Exception("Lock system fucked up");
+            }
+        }
+        set
+        {
+            if (this._Lock.WaitOne())
+            {
+                this._Data = value;
+                this._Lock.ReleaseMutex();
+            }
+            else
+            {
+                throw new Exception("Seriously? We couldn't lock on the mutex? WTF???");
+            }
+        }
+    }
+    public StructRef(DataType Data)
+    {
+        this._Lock = new Mutex();
+        this._Data = Data;
+    }
+}
+
+public struct State
+{
+    public readonly UUID uuid;
+    public readonly Dictionary<UUID, Player> players;
+    public readonly Dictionary<UUID, IProjectile> projectiles;
+    public static State fromJSON(JSONNode node)
+    {
+        UUID uuid = UUID.fromString(node["uuid"].Value);
+        Dictionary<UUID, Player> players = DictionaryUtil.fromJSON<UUID, Player>(node["players"], UUID.fromString, Player.fromJSON);
+        Dictionary<UUID, IProjectile> projectiles = DictionaryUtil.fromJSON<UUID, IProjectile>(node["projectiles"], UUID.fromString, ProjectileUtility.fromJSON);
+        return new State(uuid, players, projectiles);
+    }
+    public static State Empty()
+    {
+        UUID uuid = new UUID(0);
+        Dictionary<UUID, Player> players = new Dictionary<UUID, Player>();
+        Dictionary<UUID, IProjectile> projectiles = new Dictionary<UUID, IProjectile>();
+        return new State(uuid, players, projectiles);
+    }
+    public State(UUID uuid, Dictionary<UUID, Player> players, Dictionary<UUID, IProjectile> projectiles)
+    {
+        this.uuid = uuid;
+        this.players = players;
+        this.projectiles = projectiles;
+    }
+}
+
+public struct DictionaryUtil
+{
+    public static Dictionary<Key,Value> fromJSON<Key, Value>(
+        JSONNode node, 
+        Func<string, Key> convertKey, 
+        Func<JSONNode, Value> convertValue)
+    {
+        JSONClass objectView = node.AsObject;
+        Dictionary<Key, Value> result = new Dictionary<Key, Value>(objectView.Count);
+        foreach(KeyValuePair<string, JSONNode> pair in objectView)
+        {
+            Key key = convertKey(pair.Key);
+            Value value = convertValue(pair.Value);
+            result.Add(key, value);
+        }
+        return result;
+    }
+}
+
+public struct UUID
+{
+    public readonly UInt64 value;
+    public static UUID fromString(string key)
+    {
+        return new UUID(UInt64.Parse(key));
+    }
+    public UUID(UInt64 value)
+    {
+        this.value = value;
+    }
+}
+
+public struct Player
+{
+    public readonly UUID uuid;
+    public readonly Tank tank;
+    public static Player fromJSON(JSONNode node)
+    {
+        UUID uuid = UUID.fromString(node["uuid"]);
+        Tank tank = Tank.fromJSON(node["tank"]);
+        return new Player(uuid, tank);
+    }
+    public Player(UUID uuid, Tank tank)
+    {
+        this.uuid = uuid;
+        this.tank = tank;
+    }
+}
+
+public struct Tank
+{
+    public readonly UUID uuid;
+    public readonly Turret turret;
+    public readonly Orientation orientation;
+    public static Tank fromJSON(JSONNode node)
+    {
+        UUID uuid = UUID.fromString(node["uuid"]);
+        Turret turret = Turret.fromJSON(node["turret"]);
+        Orientation orientation = Orientation.fromJSON(node["orientation"]);
+        return new Tank(uuid, turret, orientation);
+    }
+    public Tank(UUID uuid, Turret turret, Orientation orientation)
+    {
+        this.uuid = uuid;
+        this.turret = turret;
+        this.orientation = orientation;
+    }
+}
+
+public struct Turret
+{
+    public readonly UUID uuid;
+    public readonly IWeapon weapon;
+    public readonly Orientation relativeOrientation;
+    public static Turret fromJSON(JSONNode node)
+    {
+        UUID uuid = UUID.fromString(node["uuid"]);
+        IWeapon weapon = WeaponUtility.fromJSON(node["weapon"]);
+        Orientation relativeOrientation = Orientation.fromJSON(node["orientation"]);
+        return new Turret(uuid, weapon, relativeOrientation);
+    }
+    public Turret(UUID uuid, IWeapon weapon, Orientation relativeOrientation)
+    {
+        this.uuid = uuid;
+        this.weapon = weapon;
+        this.relativeOrientation = relativeOrientation;
+    }
+}
+
+public struct ProjectileUtility
+{
+    public static IProjectile fromJSON(JSONNode node)
+    {
+        switch (node["variant"])
+        {
+            case "DefaultBullet": return DefaultProjectile.fromJSON(node);
+            default: throw new Exception("You fucked up!");
+        }
+    }
+}
+
+public interface IProjectile
+{
+    Result visit<Result>(IProjectileVisitor<Result> visitor);
+}
+
+public interface IProjectileVisitor<Result>
+{
+    Result visitDefaultProjectile(DefaultProjectile projectile);
+}
+
+public struct DefaultProjectile : IProjectile
+{
+    public readonly UUID uuid;
+    public readonly uint damage;
+    public readonly Orientation orientation;
+    public readonly Orientation orientation_derivative;
+    public static DefaultProjectile fromJSON(JSONNode node)
+    {
+        UUID uuid = UUID.fromString(node["uuid"].Value);
+        uint damage = (uint)node["damage"].AsInt;
+        Orientation orientation = Orientation.fromJSON(node["orientation"]);
+        Orientation orientation_derivative = Orientation.fromJSON(node["orientation_derivative"]);
+        return new DefaultProjectile(uuid, damage, orientation, orientation_derivative);
+    }
+    public DefaultProjectile(UUID uuid, uint damage, Orientation orientation, Orientation orientation_derivative)
+    {
+        this.uuid = uuid;
+        this.damage = damage;
+        this.orientation = orientation;
+        this.orientation_derivative = orientation_derivative;
+    }
+    public Result visit<Result>(IProjectileVisitor<Result> visitor)
+    {
+        return visitor.visitDefaultProjectile(this);
+    }
+}
+
+public struct WeaponUtility
+{
+    public static IWeapon fromJSON(JSONNode node)
+    {
+        switch(node["variant"].Value)
+        {
+            case "DefaultWeapon": return DefaultWeapon.fromJSON(node);
+            default: throw new Exception("You fucked up");
+        }
+    }
+}
+
+public interface IWeapon
+{
+    Result visit<Result>(IWeaponVisitor<Result> visitor);
+}
+
+public interface IWeaponVisitor<Result>
+{
+    Result visitDefaultWeapon(DefaultWeapon weapon);
+}
+
+public struct DefaultWeapon : IWeapon
+{
+    public readonly UUID uuid;
+    public readonly uint ammo;
+    public static DefaultWeapon fromJSON(JSONNode node)
+    {
+        UUID uuid = UUID.fromString(node["uuid"].Value);
+        uint ammo = (uint)node["ammo"].AsInt;
+        return new DefaultWeapon(uuid, ammo);
+    }
+    public DefaultWeapon(UUID uuid, uint ammo)
+    {
+        this.uuid = uuid;
+        this.ammo = ammo;
+    }
+    public Result visit<Result>(IWeaponVisitor<Result> visitor)
+    {
+        return visitor.visitDefaultWeapon(this);
+    }
+}
+
+public struct QuaternionUtility
+{
+    public static Quaternion fromJSON(JSONNode node)
+    {
+        float w = node["a"].AsFloat;
+        float x = node["i"].AsFloat;
+        float y = node["j"].AsFloat;
+        float z = node["k"].AsFloat;
+        return new Quaternion(x, y, z, w);
+    }
+}
+
+public struct Vector3Utility
+{
+    public static Vector3 fromJSON(JSONNode node)
+    {
+        float x = node[0].AsFloat;
+        float y = node[1].AsFloat;
+        float z = node[2].AsFloat;
+        return new Vector3(x, y, z);
+    }
+}
+
+public struct Orientation
+{
+    public readonly Quaternion angle;
+    public readonly Vector3 position;
+    public static Orientation fromJSON(JSONNode node)
+    {
+        Quaternion angle = QuaternionUtility.fromJSON(node["angular"]);
+        Vector3 position = Vector3Utility.fromJSON(node["linear"]);
+        return new Orientation(position, angle);
+    }
+    public Orientation(Vector3 position, Quaternion angle)
+    {
+        this.position = position;
+        this.angle = angle;
+    }
+}
+
+public struct TankData {
 	public string keyValue;
 	public string jsonString;
 	public Vector3 tankPos;
@@ -28,14 +384,11 @@ public struct TankData{
 	public Quaternion turretRot;
 }
 
-
-
-public class TankControl : MonoBehaviour
+public class TankControlOld : MonoBehaviour
 {
 
 	public GameObject Tank;
 	public GameObject Turret;
-
 
 	public bool locked;
 
@@ -44,8 +397,6 @@ public class TankControl : MonoBehaviour
 	private Vector3 location;
 	private Vector4 angle;
 	public Dictionary<string, JSONNode> players;
-	
-
 
 	//===============tcp stuff=========
 	private Socket connection;
@@ -381,6 +732,7 @@ public class TankControl : MonoBehaviour
 		}
 		print ("Reading thread returned");
 	}
+
 	void socketAccept(){
 		connection = connection.Accept();	//accept connection from hanger, then return
 		threadInit = true;
