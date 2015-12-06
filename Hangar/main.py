@@ -51,24 +51,8 @@ def main():
                                                   , unity_receive_channel
                                                   ))
 
-    tracker=camera_tracking_class.camera_thread()
-    tracker.start()
-    print "I MADE IT"
-    # Spawn the Tracking camera thread
-   ######## tracking_camera_id=thread.start_new_thread(camera.Tracker, (tracking_channel_send,)) 
-    #key values 
-    #'Red To Green':orientation from x axis for red to green vector; currently only available orienatation
-    #colorX: The color and requested coordianate, ex: greenX :green x value 
-    #colorY: The color and requested coordianate, ex: greenY :green y value
-    #  ^^curently available for red, green, and blue
-    #---fps---: current fps in seconds
-    #example use of incoming message for camera dictionary:
-    # while True:
-    #     try:
-    #         tracker_info=tracking_channel_receive.receive_exn()
-    #         print tracker_info['redX']
-    #     except ReceiveException:
-    #         pass
+    tracker=camera_tracking_class.camera_thread()   #Generates camera tracking thread
+    tracker.start()                                 #Starts thread.run() for camera
 
     # Spawn thread for controlling tank w/ keyboard
    ######## keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
@@ -99,9 +83,7 @@ def main():
 
         time_next = time.clock()
 
-        #####DELTE ME YOU FOOL
-        print "I MADE IT AGAIN"
-        
+
         #Takes data from color tracking and converts it into a quaternion angle
         #for orientation purposes.
         placementData =  tracker.getTrackingInformation()
@@ -159,7 +141,7 @@ def main():
     except KeyboardInterrupt:
 
         thread.exit()
-
+ 
 
     # Close the main thread
     thread.exit()
