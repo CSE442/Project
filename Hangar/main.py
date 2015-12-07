@@ -202,10 +202,11 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
         #        main_unity_send_channel.send(current_json)
-                print current_json
+                #print current_json
             try:
                 s.send(current_json)
                 s.send("\x03")
+                print "Data didn't send"
             except:
                 pass
             delta_time = time.clock() - start_time
