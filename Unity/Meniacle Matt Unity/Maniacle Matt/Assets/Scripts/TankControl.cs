@@ -7,7 +7,6 @@ using System.Threading;
 using SimpleJSON;
 using System.IO;
 using System.Collections.Generic;
-using System;
 
 /*	
  *	Tank Controll.cs
@@ -21,66 +20,87 @@ using System;
 
 public class TankControl : MonoBehaviour
 {
+	private Socket serverSocket;
     private Socket activeSocket;
     private string accumulatedMessage;
+	private bool gameIsInLobby;
     public GameObject Tank;
     public GameObject Turret;
 
     void Start()
     {
         print("awaiting connection...");
+		this.gameIsInLobby = true;
         IPEndPoint localEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 33333);
-        Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        //socket.Blocking = false; // no cock block
-        socket.Bind(localEndpoint);
-        socket.Listen(10);
-        this.activeSocket = socket.Accept();
-        this.activeSocket.Blocking = false;
+		this.serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+		this.serverSocket.Blocking = false; // for the magic sauce
+		this.serverSocket.Bind (localEndpoint);
+		this.serverSocket.Listen (10);
         this.accumulatedMessage = "";
     }
 
     void Update()
     {
         long startTime = DateTime.Now.Millisecond;
-        uint iterationsPerformed = 0;
-        while (activeSocket.Available > 0 && iterationsPerformed  < 1)
+		if (this.gameIsInLobby)
         {
-            iterationsPerformed ++;
-            byte[] messageBuffer = new byte[4096];
-            int messageLength = activeSocket.Receive(messageBuffer);
-            int startIndex = 0;
-            int chopIndex = 0;
-            Debug.Assert(messageLength > 0);
-            for (int messageByteIndex = 0; messageByteIndex < messageLength; messageByteIndex++)
+            try
             {
-                byte messageByte = messageBuffer[messageByteIndex];
-                if (messageByte == 0x03)
-                {
-                    startIndex = chopIndex;
-                    chopIndex = messageByteIndex;
-                    string messageTail = Encoding.ASCII.GetString(messageBuffer, startIndex, chopIndex - startIndex);
-                    string fullMessage = this.accumulatedMessage + messageTail;
-                    //print(this.accumulatedMessage + "\n\nyyy\n\n" + messageTail);
-                    this.accumulatedMessage = "";
-                    JSONNode messageJSON = JSONNode.Parse(fullMessage);
-                    State state = State.fromJSON(messageJSON);
-                    Player player = state.players.Values.GetEnumerator().Current;
-                    Tank tank = player.tank;
-                    Turret turret = tank.turret;
-                    this.Tank.transform.position = tank.orientation.position;
-                    this.Tank.transform.rotation = tank.orientation.angle;
-                    this.Turret.transform.rotation = turret.relativeOrientation.angle;
-                }
-                else if (messageByte == 0x00)
-                {
-                    print("message stream terminated");
-                }
+                this.activeSocket = this.serverSocket.Accept();
+                this.activeSocket.Blocking = false; // more magic sauce
+                this.gameIsInLobby = false;
             }
-            int chopLength = messageLength - chopIndex;
-            Debug.Assert(chopLength >= 0);
-            if (chopLength > 0)
+            catch (SocketException e)
             {
-                accumulatedMessage += Encoding.ASCII.GetString(messageBuffer, chopIndex, chopLength);
+                print("still waiting for a connection...");
+            }
+        }
+        else
+        {
+            uint iterationsPerformed = 0;
+            while (activeSocket.Available > 0 && iterationsPerformed < 1)
+            {
+                iterationsPerformed++;
+                byte[] messageBuffer = new byte[4096];
+                int messageLength = activeSocket.Receive(messageBuffer);
+                int startIndex = 0;
+                int chopIndex = 0;
+                Debug.Assert(messageLength > 0);
+                for (int messageByteIndex = 0; messageByteIndex < messageLength; messageByteIndex++)
+                {
+                    byte messageByte = messageBuffer[messageByteIndex];
+                    if (messageByte == 0x03)
+                    {
+                        startIndex = chopIndex;
+                        chopIndex = messageByteIndex;
+                        string messageTail = Encoding.ASCII.GetString(messageBuffer, startIndex, chopIndex - startIndex);
+                        string fullMessage = this.accumulatedMessage + messageTail;
+                        this.accumulatedMessage = "";
+                        JSONNode messageJSON = JSONNode.Parse(fullMessage);
+                        State state = State.fromJSON(messageJSON);
+                        print(fullMessage);
+                        print(state.players.Count);
+                        Player player = state.players.Values.GetEnumerator().Current;
+                        Tank tank = player.tank;
+                        Turret turret = tank.turret;
+                        this.Tank.transform.position = tank.orientation.position;
+                        this.Tank.transform.rotation = tank.orientation.angle;
+                        this.Turret.transform.rotation = turret.relativeOrientation.angle;
+                        print("player uuid = " + player.uuid.value);
+                        //print (tank.orientation.position);
+                        //print (tank.orientation.angle);
+                    }
+                    else if (messageByte == 0x00)
+                    {
+                        print("message stream terminated");
+                    }
+                }
+                int chopLength = messageLength - chopIndex;
+                Debug.Assert(chopLength >= 0);
+                if (chopLength > 0)
+                {
+                    accumulatedMessage += Encoding.ASCII.GetString(messageBuffer, chopIndex, chopLength);
+                }
             }
         }
         long endTime = DateTime.Now.Millisecond;
@@ -98,7 +118,8 @@ public struct State
     {
         UUID uuid = UUID.fromString(node["uuid"].Value);
         Dictionary<UUID, Player> players = DictionaryUtil.fromJSON<UUID, Player>(node["players"], UUID.fromString, Player.fromJSON);
-        Dictionary<UUID, IProjectile> projectiles = DictionaryUtil.fromJSON<UUID, IProjectile>(node["projectiles"], UUID.fromString, ProjectileUtility.fromJSON);
+        //Dictionary<UUID, IProjectile> projectiles = DictionaryUtil.fromJSON<UUID, IProjectile>(node["projectiles"], UUID.fromString, ProjectileUtility.fromJSON);
+		Dictionary<UUID, IProjectile> projectiles = new Dictionary<UUID, IProjectile>();
         return new State(uuid, players, projectiles);
     }
     public static State Empty()
@@ -154,6 +175,7 @@ public struct Player
     public readonly Tank tank;
     public static Player fromJSON(JSONNode node)
     {
+		Console.WriteLine ("reading player " + node);
         UUID uuid = UUID.fromString(node["uuid"]);
         Tank tank = Tank.fromJSON(node["tank"]);
         return new Player(uuid, tank);
@@ -172,6 +194,7 @@ public struct Tank
     public readonly Orientation orientation;
     public static Tank fromJSON(JSONNode node)
     {
+		Console.WriteLine ("reading tank " + node);
         UUID uuid = UUID.fromString(node["uuid"]);
         Turret turret = Turret.fromJSON(node["turret"]);
         Orientation orientation = Orientation.fromJSON(node["orientation"]);
@@ -192,6 +215,7 @@ public struct Turret
     public readonly Orientation relativeOrientation;
     public static Turret fromJSON(JSONNode node)
     {
+		Console.WriteLine ("reading turret " + node);
         UUID uuid = UUID.fromString(node["uuid"]);
         IWeapon weapon = WeaponUtility.fromJSON(node["weapon"]);
         Orientation relativeOrientation = Orientation.fromJSON(node["orientation"]);
