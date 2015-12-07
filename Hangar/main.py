@@ -206,8 +206,8 @@ def main():
             try:
                 s.send(current_json)
                 s.send("\x03")
-                print "Data didn't send"
             except:
+                print "Data didn't send"
                 pass
             delta_time = time.clock() - start_time
             if (delta_time < (1/60.)):
