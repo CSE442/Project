@@ -49,6 +49,10 @@ public class TankControl : MonoBehaviour
                 this.activeSocket = this.serverSocket.Accept();
                 this.activeSocket.Blocking = false; // more magic sauce
                 this.gameIsInLobby = false;
+                GetComponent<Startup_Screen>().enabled = false;
+                this.Tank.transform.position = new Vector3(0, 0, 0);
+                this.Tank.transform.rotation = Quaternion.AngleAxis(0, new Vector3(0, 0, 0));
+                this.Turret.transform.rotation = Quaternion.AngleAxis(0, new Vector3(0, 0, 0));
             }
             catch (SocketException e)
             {
