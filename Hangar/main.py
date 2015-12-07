@@ -125,6 +125,7 @@ def main():
             s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
         except:
             print "Visualization not initiated"
+            raw_input("Hit Enter")
             pass
 
         # TESTING
