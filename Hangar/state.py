@@ -583,11 +583,15 @@ class Tank(object):
             return Tank(uuid = self.uuid(),
                         orientation = self.orientation(),
                         turret = self.turret(),
-                        health = 0)
+                        health = 0,
+                        btmac = self._btmac,
+                        motorspeeds = self._motorspeeds)
         else:
             return Tank(uuid = self.uuid(),
                         orientation = self.orientation(), turret = self.turret(),
-                        health = self.health() - damage)
+                        health = self.health() - damage,
+                        btmac = self._btmac,
+                        motorspeeds = self._motorspeeds)
 
 class Player(object):
     def __init__(
@@ -1282,22 +1286,21 @@ class ActiveMatchState(State):
         if isinstance(event, BluetoothTankMoveEvent):
             for player_uuid, player in self._players.iteritems():
                 if player.btmac() == event.phone_btmac():
-                    if remaining_players.has_key(player_uuid):
-                        tank = player.tank()
-                        turret = tank.turret()
-                        new_player = Player(
-                                    uuid = player.uuid(),
-                                    tank = Tank(
-                                        uuid = tank.uuid(),
-                                        orientation = tank.orientation(),
-                                        turret = turret,
-                                        health = tank.health(),
-                                        btmac = tank.btmac(),
-                                        motorspeeds = str(event.motorspeeds())
-                                        ),
-                                   btmac = player.btmac()
-                                   )
-                        remaining_players[player_uuid] = new_player
+                    tank = player.tank()
+                    turret = tank.turret()
+                    new_player = Player(
+                                uuid = player.uuid(),
+                                tank = Tank(
+                                    uuid = tank.uuid(),
+                                    orientation = tank.orientation(),
+                                    turret = turret,
+                                    health = tank.health(),
+                                    btmac = tank.btmac(),
+                                    motorspeeds = str(event.motorspeeds())
+                                    ),
+                               btmac = player.btmac()
+                               )
+                    remaining_players[player_uuid] = new_player
 
         if isinstance(event, BluetoothTurretMoveEvent):
             for player_uuid, player in self._players.iteritems():
