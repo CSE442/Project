@@ -90,7 +90,7 @@ public class TankControl : MonoBehaviour
                         this.Tank.transform.position = tank.orientation.position;
                         this.Tank.transform.rotation = tank.orientation.angle;
                         this.Turret.transform.rotation = turret.relativeOrientation.angle;
-                        print("player uuid = " + player.uuid.value);
+                        print("state uuid = " + state.uuid);
                         //print (tank.orientation.position);
                         //print (tank.orientation.angle);
                     }
