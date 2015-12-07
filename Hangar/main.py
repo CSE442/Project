@@ -53,15 +53,6 @@ def main():
 #    unity_receive_thread_id = thread.start_new_thread(main_unity,
     #                                              (unity_receive_channel,))
 
-    try:
-        VISUALIZER_ADDRESS = "127.0.0.1"
-        VISUALIZER_PORT    = 33333
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
-    except:
-        print "Visualization not initiated"
-        pass
-
     # Before making any connections, ensure all devices are paired with the server
     try:
         time_prev = time.clock()
@@ -112,6 +103,15 @@ def main():
                                tank = Tank(Uuid.generate(),
                                            btmac = connected_phones[1]))),
                                time_prev, time_next - time_prev)
+
+        try:
+            VISUALIZER_ADDRESS = "127.0.0.1"
+            VISUALIZER_PORT    = 33333
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
+        except:
+            print "Visualization not initiated"
+            pass
 
         # TESTING
         time_next = time.clock()
