@@ -18,14 +18,16 @@ from   main_unity        import *
 from   main_bluetooth    import *
 from   message_generator import MessageGenerator
 from   bluetooth_manager import BluetoothManager
-import colorOptimizatiom_2 as camera
+#######import colorOptimizatiom_2 as camera
+import camera_tracking_class
+#import camera_tracking_class_rewrite
 
 def main():
     # Create the communication channels between threads
     bluetooth_send_channel,       main_bluetooth_receive_channel = Channel()
     main_bluetooth_send_channel,  bluetooth_receive_channel      = Channel()
     main_unity_send_channel,      unity_receive_channel          = Channel()
-    tracking_channel_send, tracking_channel_recieve              = Channel()
+   ######## tracking_channel_send, tracking_channel_receive              = Channel()
 
     # Create the bluetooth manager class
     bluetooth_manager = BluetoothManager()
@@ -43,17 +45,22 @@ def main():
                                                       (bluetooth_receive_channel,
                                                           bluetooth_manager,))
 
-    # Spawn the Visualizer Thread
+    tracker=camera_tracking_class.camera_thread()   #Generates camera tracking thread
+    tracker.start()                                 #Starts thread.run() for camera
+
+    # Spawn thread for controlling tank w/ keyboard
+   ######## keyboard_input_thread_id = thread.start_new_thread(keyboard_input,(bluetooth_send_channel,))
 #    unity_receive_thread_id = thread.start_new_thread(main_unity,
     #                                              (unity_receive_channel,))
 
-    VISUALIZER_ADDRESS = "127.0.0.1"
-    VISUALIZER_PORT    = 33333
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
-    # Spawn the Tracking camera thread
-#    tracking_camera_id=thread.start_new_thread(camera.Tracker,
-#                                               (tracking_channel_send,))
+    try:
+        VISUALIZER_ADDRESS = "127.0.0.1"
+        VISUALIZER_PORT    = 33333
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
+    except:
+        print "Visualization not initiated"
+        pass
 
     # Before making any connections, ensure all devices are paired with the server
     try:
@@ -147,6 +154,28 @@ def main():
             bluetooth_data, state_next = state_next.bluetooth_info()
             main_bluetooth_send_channel.send(bluetooth_data)
 
+            #Takes data from color tracking and converts it into a quaternion angle
+            #for orientation purposes.
+            front,back,angle = tracker.getTrackingInformation()
+            front_x,front_z = front #Green Dot's X and Z aka Tank Front
+            back_x,back_z = back #Pink/Red Dot's X and Z aka Tank Back
+            # X and Z of Tank Center
+            center_x,center_z = ((front_x + back_x) / 2.0, (front_z + back_z) / 2.0)
+            #Orientation of Tank Back based on Tank Front
+            print center_x, center_z, angle
+            time_next = time.clock()
+            state_next = state_prev.next(
+                    ImageTankMoveEvent(Uuid.generate(),
+                                       center_x,
+                                       0.0,
+                                       center_z,
+                                       angle
+                                       ),
+                    time_prev,
+                    time_next - time_prev)
+            state_prev = state_next
+            time_prev = time_next
+
             '''
             time_next = time.clock()
             state_next = state_prev.next([], time_prev, time_next - time_prev)
@@ -159,21 +188,27 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
         #        main_unity_send_channel.send(current_json)
-                print current_json
-            s.send(current_json)
-            s.send("\x03")
-            '''
+#                print current_json
+            try:
+                s.send(current_json)
+                s.send("\x03")
+            except:
+                pass
             delta_time = time.clock() - start_time
             if (delta_time < (1/60.)):
                 time.sleep(1/60. - delta_time)
-                '''
 
     except KeyboardInterrupt:
 #        bluetooth_manager.bluetooth_stop()
-        s.send("\x04")
+        try:
+            s.send("\x04")
+        except:
+            pass
         raw_input("Hit Enter")
         time.sleep(1)
+        tracker.kill()
         thread.exit()
+
 
     # Close the main thread
     thread.exit()

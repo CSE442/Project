@@ -287,7 +287,6 @@ class Orientation(object):
 
     def linear(self):
         return self._linear
-
     def angular(self):
         return self._angular
 
@@ -830,6 +829,50 @@ class SendAvailableTanks(Event):
                 'initial_btmacs': self._initial_btmacs
         }
 
+class ImageTankMoveEvent(Event):
+    def __init__(
+            self,
+            uuid,
+            x     = 0.0,
+            y     = 0.0,
+            z     = 0.0,
+            angle = 0.0
+            ):
+        assert type(uuid) is int
+        assert type(x) is float
+        assert type(y) is float
+        assert type(z) is float
+        self._uuid = uuid
+        self.x = x
+        self.y = y
+        self.z = z
+        self._angle = angle
+
+    def uuid(self):
+        return self._uuid
+    def angle(self):
+        return self._angle
+    def position(self):
+        return (self.x, self.y, self.z)
+
+    @staticmethod
+    def from_json(json):
+        return ImageTankMoveEvent(
+                json['uuid'],
+                (json['x'],json['y'],json['z']),
+                json['angle']
+                )
+
+    def to_json():
+        return {
+                'variant': 'ImageTankMoveEvent',
+                'uuid'   : self._uuid,
+                'x'      : self.x,
+                'y'      : self.y,
+                'z'      : self.z,
+                'angle'  : self._angle
+        }
+
 class DirectionalKeyPushEvent(Event):
     def __init__(
             self,
@@ -1186,51 +1229,75 @@ class ActiveMatchState(State):
             if projectile_uuid not in collisions.values():
                 remaining_projectiles[projectile_uuid] = projectile
 
+        if isinstance(event, ImageTankMoveEvent):
+            for player_uuid, player in self._players.iteritems():
+                if remaining_players.has_key(player_uuid):
+                    tank        = player.tank()
+                    turret      = tank.turret()
+                    linear      = Vector3.from_tuple(event.position())
+                    angular     = Quaternion.from_axis_angle( 0.0, 1.0, 0.0, event.angle())
+                    orientation = Orientation(linear, angular)
+                    new_player  = Player(
+                                uuid = player.uuid(),
+                                tank = Tank(
+                                    uuid        = tank.uuid(),
+                                    orientation = orientation,
+                                    turret      = turret,
+                                    health      = tank.health(),
+                                    btmac       = tank.btmac(),
+                                    motorspeeds = tank.motorspeeds()
+                                    ),
+                               btmac = player.btmac()
+                               )
+                    remaining_players[player_uuid] = new_player
+
         if isinstance(event, BluetoothFireEvent):
             for player_uuid, player in self._players.iteritems():
                 if player.btmac() == event.phone_btmac():
-                    if player.tank().turret().weapon().ammo() >= 1:
-                        tank           = player.tank()
-                        turret         = player.tank().turret()
-                        orientation    = turret.orientation()
-                        weapon, bullet = turret.weapon().fire(orientation)
+                    if remaining_players.has_key(player_uuid):
+                        if player.tank().turret().weapon().ammo() >= 1:
+                            tank           = player.tank()
+                            turret         = player.tank().turret()
+                            orientation    = turret.orientation()
+                            weapon, bullet = turret.weapon().fire(orientation)
+                            new_player     = Player(
+                                        uuid = player.uuid(),
+                                        tank = Tank(
+                                            uuid        = tank.uuid(),
+                                            orientation = tank.orientation(),
+                                            turret      = Turret(
+                                                turret.uuid(),
+                                                orientation = turret.orientation(),
+                                                weapon      = weapon
+                                                ),
+                                            health      = tank.health(),
+                                            btmac       = tank.btmac(),
+                                            motorspeeds = tank.motorspeeds()
+                                            ),
+                                       btmac = player.btmac()
+                                       )
+                            remaining_projectiles[bullet.uuid()] = bullet
+                            remaining_players[player_uuid]       = new_player
+
+        if isinstance(event, BluetoothTankMoveEvent):
+            for player_uuid, player in self._players.iteritems():
+                if player.btmac() == event.phone_btmac():
+                    if remaining_players.has_key(player_uuid):
+                        tank = player.tank()
+                        turret = tank.turret()
                         new_player = Player(
                                     uuid = player.uuid(),
                                     tank = Tank(
                                         uuid = tank.uuid(),
                                         orientation = tank.orientation(),
-                                        turret = Turret(
-                                            turret.uuid(),
-                                            orientation = turret.orientation(),
-                                            weapon = weapon
-                                            ),
+                                        turret = turret,
                                         health = tank.health(),
                                         btmac = tank.btmac(),
-                                        motorspeeds = tank.motorspeeds()
+                                        motorspeeds = str(event.motorspeeds())
                                         ),
                                    btmac = player.btmac()
                                    )
-                        remaining_projectiles[bullet.uuid()] = bullet
                         remaining_players[player_uuid] = new_player
-
-        if isinstance(event, BluetoothTankMoveEvent):
-            for player_uuid, player in self._players.iteritems():
-                if player.btmac() == event.phone_btmac():
-                    tank = player.tank()
-                    turret = tank.turret()
-                    new_player = Player(
-                                uuid = player.uuid(),
-                                tank = Tank(
-                                    uuid = tank.uuid(),
-                                    orientation = tank.orientation(),
-                                    turret = turret,
-                                    health = tank.health(),
-                                    btmac = tank.btmac(),
-                                    motorspeeds = str(event.motorspeeds())
-                                    ),
-                               btmac = player.btmac()
-                               )
-                    remaining_players[player_uuid] = new_player
 
         if isinstance(event, BluetoothTurretMoveEvent):
             for player_uuid, player in self._players.iteritems():
@@ -1242,11 +1309,14 @@ class ActiveMatchState(State):
                         # the turret, probably a bug or two in here
                         tank = player.tank()
                         turret = tank.turret()
-                        static_rotation   = Quaternion.from_axis_angle(0.0, 0.0, 1.0, math.pi)
-                        my_rotation       = Quaternion.from_axis_angle(0.0, 1.0, 0.0, event.angle()*math.pi / 180.0)
+                        static_rotation   = Quaternion.from_axis_angle(
+                                0.0, 0.0, 1.0, math.pi)
+                        my_rotation       = Quaternion.from_axis_angle(
+                                0.0, 1.0, 0.0, event.angle()*math.pi / 180.0)
                         combined_rotation = static_rotation * my_rotation
-                        orientation = Orientation(linear  = turret.orientation().linear(),
-                                                  angular = combined_rotation)
+                        orientation       = Orientation(
+                                linear  = turret.orientation().linear(),
+                                angular = combined_rotation)
                         new_player = Player(
                                 uuid = player.uuid(),
                                 tank = Tank(
