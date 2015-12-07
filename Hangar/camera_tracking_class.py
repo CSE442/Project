@@ -7,7 +7,8 @@
 import cv2
 import time
 import math
-import threading 
+import thread
+import threading
 import channel
 
 
@@ -15,7 +16,7 @@ import channel
 def isGrayscale(blue, green, red):
     if(max(blue, green, red) - min(blue, green, red))<70:
         return True
-    else: 
+    else:
         return False
 
 def isBlue(blue, green, red):
@@ -37,7 +38,7 @@ def isRed(blue, green, red):
         return False
 
 def isOrange(blue, green, red):
-    #if ( red>=((green/2)*0.9 ) and ( red<=((green/2)*1.1 )   
+    #if ( red>=((green/2)*0.9 ) and ( red<=((green/2)*1.1 )
     if ((red-(2*green))/red <= 0.1) and ((red-(4*blue))/red <= 0.1) and ((green-(2*blue))/green <= 0.1):
         return True
     else:
@@ -70,6 +71,9 @@ class camera_thread(threading.Thread):#subclass of thread
 
 	def getTrackingInformation(self):
 		return self.placementData
+
+        def kill(self):
+            thread.exit()
 
 	def run(self):
 		camera = cv2.VideoCapture(0)
@@ -117,7 +121,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		        red = color[2]
 		        if(isGrayscale(blue, green, red)):
 		            initialFrame[c,r] = (0,0,0)
-		        #green 
+		        #green
 		        elif(isGreen(blue, green, red)):
 		            initialFrame[c,r] = (0,255, 0)
 		            greenExists = True
@@ -130,8 +134,8 @@ class camera_thread(threading.Thread):#subclass of thread
 		            blueExists = True
 		            numberOfBluePixels = numberOfBluePixels + 1
 		            totalBlueX = totalBlueX + c
-		            totalBlueY = totalBlueY + r   
-		        
+		            totalBlueY = totalBlueY + r
+
 		        # #pink
 		        # elif(isPink(blue, green, red)):
 		        #     initialFrame[c,r] = (64,127,255)
@@ -147,7 +151,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		        #     numberOfOrangePixels = numberOfOrangePixels + 1
 		        #     totalOrangeX = totalOrangeX + c
 		        #     totalOrangeY = totalOrangeY + r
-		        
+
 		        #red
 		        elif(isRed(blue, green, red)):
 		            initialFrame[c,r] = (0,0,255)
@@ -157,7 +161,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		            totalRedY = totalRedY + r
 		        else:
 		            initialFrame[c,r] = (0,0,0)
-		                
+
 		finalBlueX = 0
 		finalBlueY = 0
 		finalGreenX = 0
@@ -199,8 +203,8 @@ class camera_thread(threading.Thread):#subclass of thread
 		            blueHeight = blueHeight + 1
 		        if(min(blueHeight, blueWidth) < step):
 		            step = min(blueHeight, blueWidth)
-		            
-		    
+
+
 		if numberOfGreenPixels != 0:
 		# if green has been found, find average point of the color
 		    finalGreenX = totalGreenX/numberOfGreenPixels
@@ -235,7 +239,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		            initialFrame[finalGreenX,y2] = (255,255,255)
 		            y2 = y2-1
 		            greenHeight = greenHeight + 1
-		        
+
 		        if(min(greenHeight, greenWidth) < step):
 		            step = min(greenHeight, greenWidth)
 
@@ -298,7 +302,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		#             OrangeHeight = OrangeHeight + 1
 		#         if(min(OrangeHeight, OrangeWidth) < step):
 		#             step = min(OrangeHeight, OrangeWidth)
-		                                            
+
 		if numberOfRedPixels != 0:
 		# if red has been found, find average point of the color
 		    finalRedX = totalRedX/numberOfRedPixels
@@ -332,7 +336,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		    #print 'Blue: ', finalBlueX, ',', finalBlueY
 		    #print 'Green: ', finalGreenX, ',', finalGreenY
 		    #print 'Red: ', finalRedX, ',', finalRedY
-		#cv2.imshow('Initialization',initialFrame)          
+		#cv2.imshow('Initialization',initialFrame)
 		#cv2.imwrite('C:\Users\Aaron\python\images\Initialized.png', initialFrame)
 
 		#Generates the dectected color blob values to pass along
@@ -352,7 +356,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		if greenExists and redExists:
 		    deltaY=finalGreenY-finalRedY
 		    deltaX=finalGreenX-finalRedX
-		    angleInDegrees = math.atan(deltaX / deltaY) * 180 / math.pi
+		    angleInDegrees = math.atan2(deltaX, deltaY) * 180 / math.pi
 		    self.colorDetectionList['Red To Green']=angleInDegrees
 
 
@@ -366,18 +370,18 @@ class camera_thread(threading.Thread):#subclass of thread
 		for c in range(0,width):
 		    for r in range(0,height):
 		        emptyImg[c,r] = (0,0,0)
-		    
+
 		while camera.isOpened():
 		    start_time = time.time()
 		    ##for testing purposes, only take one image,
 		    ##more optimization is required to do this continuously at a reasonable rate (than one img every 3 seconds)
-		    
-		    #Reads a frame from the camera and stores 
+
+		    #Reads a frame from the camera and stores
 		    _, frame = camera.read()
-		    
+
 		    width = frame.shape[0]
 		    height = frame.shape[1]
-		    
+
 		    totalRedX = 0
 		    totalRedY = 0
 		    totalGreenX = 0
@@ -396,19 +400,19 @@ class camera_thread(threading.Thread):#subclass of thread
 
 		    averageGreenX = 0
 		    averageGreenY = 0
-		    
+
 		    averageBlueX = 0
 		    averageBlueY = 0
-		    
+
 		    averageRedX = 0
 		    averageRedY = 0
-		    
+
 		    averagePinkX=0
 		    averagePinkY=0
 
 		    averageOrangeX=0
 		    averageOrangeY=0
-		        
+
 		    blueFound= False
 		    greenFound= False
 		    redFound= False
@@ -430,7 +434,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		            red = color[2]
 		            if isGrayscale(blue, green, red):
 		                frame[c,r] = (0,0,0)
-		            #green 
+		            #green
 		            elif(not greenFound and isGreen(blue,green,red)):
 		                #find center X
 		                greenFound = True
@@ -442,32 +446,32 @@ class camera_thread(threading.Thread):#subclass of thread
 		                leftMostX = currentX
 		                bottomMostY = currentY
 		                topMostY = currentY
-		    
+
 		                while tempX<width  and isGreen(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) and not isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
 		                    frame[tempX, currentY] = (0,255,0)
 		                    tempX = tempX + 1
 		                rightMostX = tempX
 		                tempX = currentX
-		                
+
 		                while tempX>1 and isGreen(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) and not isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]):
 		                    frame[tempX, currentY] = (0,255,0)
 		                    tempX = tempX - 1
 		                leftMostX = tempX
-		                
+
 		                while tempY<height and isGreen(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) :
 		                    frame[currentX, tempY] = (0,255,0)
 		                    tempY = tempY + 1
 		                bottomMostY = tempY
 		                tempY = currentY
-		                
+
 		                while tempY>1 and isGreen(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) :
-		                    frame[currentX, tempY] = (0,255,0) 
+		                    frame[currentX, tempY] = (0,255,0)
 		                    tempY = tempY - 1
 		                topMostY = tempY
-		                
+
 		                averageGreenX = (leftMostX + rightMostX)/2
 		                averageGreenY = (bottomMostY + topMostY)/2
-		                
+
 		                for x in range(averageGreenX-2, averageGreenX+2):
 		                    for y in range(averageGreenY-2, averageGreenY+2):
 		                        if y>0 and y<height and x>0 and x<width:
@@ -492,26 +496,26 @@ class camera_thread(threading.Thread):#subclass of thread
 		                    tempX = tempX + 1
 		                rightMostX = tempX
 		                tempX = currentX
-		                
+
 		                while tempX>1 and isBlue(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) and not isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
-		                    frame[tempX, currentY] = (255,0,0)    
+		                    frame[tempX, currentY] = (255,0,0)
 		                    tempX = tempX - 1
 		                leftMostX = tempX
-		                
+
 		                while tempY<height and isBlue(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]):
 		                    frame[currentX, tempY] = (255,0,0)
 		                    tempY = tempY + 1
 		                bottomMostY = tempY
 		                tempY = currentY
-		                
+
 		                while tempY>1 and isBlue(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]):
 		                    frame[currentX, tempY] = (255,0,0)
 		                    tempY = tempY - 1
 		                topMostY = tempY
-		                
+
 		                averageBlueX = (leftMostX + rightMostX)/2
 		                averageBlueY = (bottomMostY + topMostY)/2
-		                
+
 		                for x in range(averageBlueX-2, averageBlueX+2):
 		                    for y in range(averageBlueY-2, averageBlueY+2):
 		                        if y>0 and y<height and x>0 and x<width:
@@ -539,38 +543,38 @@ class camera_thread(threading.Thread):#subclass of thread
 		            #         tempX = tempX + 1
 		            #     rightMostX = tempX
 		            #     tempX = currentX
-		                
+
 		            #     while tempX>1 and isPink(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) and not isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]):
 		            #         frame[tempX, currentY] = (64,127,255)
 		            #         tempX = tempX - 1
 		            #     leftMostX = tempX
-		                
+
 		            #     while tempY<height and isPink(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
 		            #         frame[currentX, tempY] = (64,127,255)
 		            #         tempY = tempY + 1
 		            #     bottomMostY = tempY
 		            #     tempY = currentY
-		                
+
 		            #     while tempY>1 and isPink(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
-		            #         frame[currentX, tempY] = (64,127,255) 
+		            #         frame[currentX, tempY] = (64,127,255)
 		            #         tempY = tempY - 1
 		            #     topMostY = tempY
-		                
+
 		            #     pinkFound = True
-		                
+
 		            #     averagePinkX = (leftMostX + rightMostX)/2
 		            #     averagePinkY = (bottomMostY + topMostY)/2
-		                
-		                
+
+
 		            #     for x in range(averagePinkX-2, averagePinkX+2):
 		            #         for y in range(averagePinkY-2, averagePinkY+2):
 		            #             if y>0 and y<height and x>0 and x<width:
 		            #                 frame[x,y] = (255,255,255)
 		            #     for x in range(averagePinkX-1, averagePinkX+1):
-		            #         for y in range(averagePinkY-1, averagePinkY+1): 
+		            #         for y in range(averagePinkY-1, averagePinkY+1):
 		            #             if y>0 and y<height and x>0 and x<width:
 		            #                 frame[x,y] = (64,127,255)
-		            
+
 
 		            # #orange
 		            # elif(not orangeFound and isOrange(blue,green,red)):
@@ -590,35 +594,35 @@ class camera_thread(threading.Thread):#subclass of thread
 		            #         tempX = tempX + 1
 		            #     rightMostX = tempX
 		            #     tempX = currentX
-		                
+
 		            #     while tempX>1 and isOrange(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) and not isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]):
 		            #         frame[tempX, currentY] = (127,64,255)
 		            #         tempX = tempX - 1
 		            #     leftMostX = tempX
-		                
+
 		            #     while tempY<height and isOrange(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
 		            #         frame[currentX, tempY] = (127,64,255)
 		            #         tempY = tempY + 1
 		            #     bottomMostY = tempY
 		            #     tempY = currentY
-		                
+
 		            #     while tempY>1 and isOrange(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
-		            #         frame[currentX, tempY] = (127,64,255) 
+		            #         frame[currentX, tempY] = (127,64,255)
 		            #         tempY = tempY - 1
 		            #     topMostY = tempY
-		                
+
 		            #     orangeFound = True
-		                
+
 		            #     averageOrangeX = (leftMostX + rightMostX)/2
 		            #     averageOrangeY = (bottomMostY + topMostY)/2
-		                
-		                
+
+
 		            #     for x in range(averageOrangeX-2, averageOrangeX+2):
 		            #         for y in range(averageOrangeY-2, averageOrangeY+2):
 		            #             if y>0 and y<height and x>0 and x<width:
 		            #                 frame[x,y] = (255,255,255)
 		            #     for x in range(averageOrangeX-1, averageOrangeX+1):
-		            #         for y in range(averageOrangeY-1, averageOrangeY+1): 
+		            #         for y in range(averageOrangeY-1, averageOrangeY+1):
 		            #             if y>0 and y<height and x>0 and x<width:
 		            #                 frame[x,y] = (127,64,255)
 
@@ -637,50 +641,50 @@ class camera_thread(threading.Thread):#subclass of thread
 		                #print '(X,Y): ', currentX, currentY
 		                #print 'X < Width:', tempX<width
 		                #print 'Pixel is red: ',isRed(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2])
-		                #print 'is grayscale?: ', isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) 
-		    
+		                #print 'is grayscale?: ', isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2])
+
 		                while tempX<width  and isRed(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) and not isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
 		                    frame[tempX, currentY] = (0,0,255)
 		                    tempX = tempX + 1
 		                rightMostX = tempX
 		                tempX = currentX
-		                
+
 		                while tempX>1 and isRed(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) and not isGrayscale(frame[tempX,currentY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]):
 		                    frame[tempX, currentY] = (0,0,255)
 		                    tempX = tempX - 1
 		                leftMostX = tempX
-		                
+
 		                while tempY<height and isRed(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
 		                    frame[currentX, tempY] = (0,0,255)
 		                    tempY = tempY + 1
 		                bottomMostY = tempY
 		                tempY = currentY
-		                
+
 		                while tempY>1 and isRed(frame[currentX,tempY][0], frame[currentX,tempY][1], frame[currentX,tempY][2]) and not isGrayscale(frame[currentX,tempY][0], frame[tempX,currentY][1], frame[tempX,currentY][2]) :
-		                    frame[currentX, tempY] = (0,0,255) 
+		                    frame[currentX, tempY] = (0,0,255)
 		                    tempY = tempY - 1
 		                topMostY = tempY
-		                
+
 		                redFound = True
-		                
+
 		                averageRedX = (leftMostX + rightMostX)/2
 		                averageRedY = (bottomMostY + topMostY)/2
-		                
-		                
+
+
 		                for x in range(averageRedX-2, averageRedX+2):
 		                    for y in range(averageRedY-2, averageRedY+2):
 		                        if y>0 and y<height and x>0 and x<width:
 		                            frame[x,y] = (255,255,255)
 		                for x in range(averageRedX-1, averageRedX+1):
-		                    for y in range(averageRedY-1, averageRedY+1): 
+		                    for y in range(averageRedY-1, averageRedY+1):
 		                        if y>0 and y<height and x>0 and x<width:
 		                            frame[x,y] = (0,0,255)
-		    
+
 		            #else:
 		            #    frame[c,r] = (0,0,0)
 		            #this interferes with finding centers
-		        
-		    
+
+
 		    #For debugging purposes, compares non optimized centers to optimized, in-loop centers
 
 		    #TODO Fix X and Y
@@ -701,15 +705,15 @@ class camera_thread(threading.Thread):#subclass of thread
 		        self.colorDetectionList['greenX']=coordinateGreenY
 		        self.colorDetectionList['greenY']=coordinateGreenX
 		    # if pinkFound:
-		    #     print 'Pink: (', averagePinkX, ',', averagePinkY, ')' 
+		    #     print 'Pink: (', averagePinkX, ',', averagePinkY, ')'
 		    # if orangeFound:
-		    #     print 'Orange: (', averageOrangeX, ',', averageOrangeY, ')' 
+		    #     print 'Orange: (', averageOrangeX, ',', averageOrangeY, ')'
 		    if redFound:
 		        coordinateRedY = float(averageRedY-(halfH))/(halfH)
 		        coordinateRedX = float(-(averageRedX-(halfW))/(halfW))
 		        #print 'Red: (', coordinateRedY, ',', coordinateRedX, ')'
 		        self.colorDetectionList['redX']=coordinateRedY
-		        self.colorDetectionList['redY']=coordinateRedX 
+		        self.colorDetectionList['redY']=coordinateRedX
 
 		    if greenFound and redFound:
 		        deltaY=averageGreenY-averageRedY
@@ -722,7 +726,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		    if blueExists:
 		        for x in range(averageBlueX-2, averageBlueX+2):
 		            for y in range(averageBlueY-2, averageBlueY+2):
-		                if x>0 and x<width and y>0 and y < height:  
+		                if x>0 and x<width and y>0 and y < height:
 		                    outputImg[x, y] = (255,0,0)
 		    if greenExists:
 		        for x in range(averageGreenX-2, averageGreenX+2):
@@ -744,12 +748,12 @@ class camera_thread(threading.Thread):#subclass of thread
 		            for y in range(averageRedY-2, averageRedY+2):
 		                if x>0 and x<width and y>0 and y < height:
 		                    outputImg[x, y] = (0,0,255)
-		    imageCounter = imageCounter +1 
+		    imageCounter = imageCounter +1
 		    self.placementData = ((coordinateGreenY,coordinateGreenX),(coordinateRedY,coordinateRedX),angleInDegrees)
-		    
 
 
-		    # if start_time != time.time(): 
+
+		    # if start_time != time.time():
 		    #     self.colorDetectionList['---fps---']= 1/(time.time() - start_time)
 
 		    #send_channel.send(self.colorDetectionList)

@@ -53,13 +53,14 @@ def main():
 #    unity_receive_thread_id = thread.start_new_thread(main_unity,
     #                                              (unity_receive_channel,))
 
-    VISUALIZER_ADDRESS = "127.0.0.1"
-    VISUALIZER_PORT    = 33333
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
-    # Spawn the Tracking camera thread
-#    tracking_camera_id=thread.start_new_thread(camera.Tracker,
-#                                               (tracking_channel_send,))
+    try:
+        VISUALIZER_ADDRESS = "127.0.0.1"
+        VISUALIZER_PORT    = 33333
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((VISUALIZER_ADDRESS, VISUALIZER_PORT))
+    except:
+        print "Visualization not initiated"
+        pass
 
     # Before making any connections, ensure all devices are paired with the server
     try:
@@ -155,18 +156,25 @@ def main():
 
             #Takes data from color tracking and converts it into a quaternion angle
             #for orientation purposes.
-            placementData =  tracker.getTrackingInformation()
-            front = placementData[0] #Green Dot's X and Y aka Tank Front
-            back = placementData[1] #Pink/Red Dot's X and Y aka Tank Back
-            average = ((front[0]+back[0])/2, (front[1]+back[1])/2,) #X and Y of Tank Center
-            angle = placementData[2]#Orientation of Tank Back based on Tank Front
-
-            #Convert placementData into Quaternion Data
-            quaternionAngle = Quaternion.from_axis_angle(average[0], 0, average[1], angle)
-            # print quaternionAngle.a #Based off of Angle
-            # print quaternionAngle.i #Based Off of X
-            # print quaternionAngle.j #Based off of Y, should be 0.0 or -0.0
-            # print quaternionAngle.k #Based off of Z
+            front,back,angle = tracker.getTrackingInformation()
+            front_x,front_z = front #Green Dot's X and Z aka Tank Front
+            back_x,back_z = back #Pink/Red Dot's X and Z aka Tank Back
+            # X and Z of Tank Center
+            center_x,center_z = ((front_x + back_x) / 2.0, (front_z + back_z) / 2.0)
+            #Orientation of Tank Back based on Tank Front
+            print center_x, center_z, angle
+            time_next = time.clock()
+            state_next = state_prev.next(
+                    ImageTankMoveEvent(Uuid.generate(),
+                                       center_x,
+                                       0.0,
+                                       center_z,
+                                       angle
+                                       ),
+                    time_prev,
+                    time_next - time_prev)
+            state_prev = state_next
+            time_prev = time_next
 
             '''
             time_next = time.clock()
@@ -180,20 +188,25 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
         #        main_unity_send_channel.send(current_json)
-                print current_json
-            s.send(current_json)
-            s.send("\x03")
-            '''
+#                print current_json
+            try:
+                s.send(current_json)
+                s.send("\x03")
+            except:
+                pass
             delta_time = time.clock() - start_time
             if (delta_time < (1/60.)):
                 time.sleep(1/60. - delta_time)
-                '''
 
     except KeyboardInterrupt:
 #        bluetooth_manager.bluetooth_stop()
-        s.send("\x04")
+        try:
+            s.send("\x04")
+        except:
+            pass
         raw_input("Hit Enter")
         time.sleep(1)
+        tracker.kill()
         thread.exit()
 
 
