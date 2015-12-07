@@ -1309,14 +1309,14 @@ class ActiveMatchState(State):
                         # the turret, probably a bug or two in here
                         tank = player.tank()
                         turret = tank.turret()
-                        static_rotation   = Quaternion.from_axis_angle(
-                                0.0, 0.0, 1.0, math.pi)
+                        #static_rotation   = Quaternion.from_axis_angle(
+                        #        0.0, 0.0, 1.0, math.pi)
                         my_rotation       = Quaternion.from_axis_angle(
-                                0.0, 1.0, 0.0, event.angle()*math.pi / 180.0)
-                        combined_rotation = static_rotation * my_rotation
+                                0.0, 1.0, 0.0, (event.angle()*math.pi/180.0) - math.pi/2.0)
+                        #combined_rotation = static_rotation * my_rotation
                         orientation       = Orientation(
                                 linear  = turret.orientation().linear(),
-                                angular = combined_rotation)
+                                angular = my_rotation)
                         new_player = Player(
                                 uuid = player.uuid(),
                                 tank = Tank(

@@ -7,7 +7,6 @@
 import cv2
 import time
 import math
-import thread
 import threading
 import channel
 

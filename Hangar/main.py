@@ -177,7 +177,7 @@ def main():
             # X and Z of Tank Center
             center_x,center_z = ((front_x + back_x) / 2.0, (front_z + back_z) / 2.0)
             #Orientation of Tank Back based on Tank Front
-            print center_x, center_z, angle
+            #print center_x, center_z, angle
             time_next = time.clock()
             state_next = state_prev.next(
                     ImageTankMoveEvent(Uuid.generate(),
@@ -215,7 +215,7 @@ def main():
                 time.sleep(1/60. - delta_time)
 
     except KeyboardInterrupt:
-#        bluetooth_manager.bluetooth_stop()
+        bluetooth_manager.bluetooth_stop()
         try:
             s.send("\x04")
         except:
