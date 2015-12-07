@@ -29,21 +29,24 @@ def main():
     main_unity_send_channel,      unity_receive_channel          = Channel()
    ######## tracking_channel_send, tracking_channel_receive              = Channel()
 
+    DISABLE_BLUETOOTH = True
+
     # Create the bluetooth manager class
     bluetooth_manager = BluetoothManager()
 
     # Retreive the Main Thread ID for Fun and Profit
     main_thread_id          = thread.get_ident()
 
-    # Spawn the Bluetooth Transmitter Thread
-    bluetooth_send_thread_id  = thread.start_new_thread(main_bluetooth_send,
-                                                      (bluetooth_send_channel,
-                                                          bluetooth_manager,))
+    if not DISABLE_BLUETOOTH:
+        # Spawn the Bluetooth Transmitter Thread
+        bluetooth_send_thread_id  = thread.start_new_thread(main_bluetooth_send,
+                                                          (bluetooth_send_channel,
+                                                              bluetooth_manager,))
 
-    # Spawn the Bluetooth Receiver Thread
-    bluetooth_receive_thread_id = thread.start_new_thread(main_bluetooth_receive,
-                                                      (bluetooth_receive_channel,
-                                                          bluetooth_manager,))
+        # Spawn the Bluetooth Receiver Thread
+        bluetooth_receive_thread_id = thread.start_new_thread(main_bluetooth_receive,
+                                                          (bluetooth_receive_channel,
+                                                              bluetooth_manager,))
 
     tracker=camera_tracking_class.camera_thread()   #Generates camera tracking thread
     tracker.start()                                 #Starts thread.run() for camera
@@ -59,49 +62,60 @@ def main():
         time_next = None
         state_prev = State.initial()
         state_next = None
-        bluetooth_manager.bluetooth_start()
-        # Go through a prompt for connected the
-        # tanks and get a dictionary of the tanks
-        # Dictionary: Key = Bluetooth MAC, Value = Device Name
-        connected_tanks = bp.connect_tanks_prompt(bluetooth_manager)
+        if not DISABLE_BLUETOOTH:
+            bluetooth_manager.bluetooth_start()
+            # Go through a prompt for connected the
+            # tanks and get a dictionary of the tanks
+            # Dictionary: Key = Bluetooth MAC, Value = Device Name
+            connected_tanks = bp.connect_tanks_prompt(bluetooth_manager)
 
-        numPhones  = int(raw_input("Enter number of phone(s) to connect: "))
+            numPhones  = int(raw_input("Enter number of phone(s) to connect: "))
 
-        # Allows phones to connect to server and returns a list of Bluetooth MACs
-        # that connected to it (NOT A DICTIONARY so
-        # no device names due to api restriction)
-        connected_phones = bp.connect_phones_prompt(bluetooth_manager,
-                                                    numPhones)
-        print len(connected_phones), "phone(s) connected"
+            # Allows phones to connect to server and returns a list of Bluetooth MACs
+            # that connected to it (NOT A DICTIONARY so
+            # no device names due to api restriction)
+            connected_phones = bp.connect_phones_prompt(bluetooth_manager,
+                                                        numPhones)
+            print len(connected_phones), "phone(s) connected"
 
-        time_next = time.clock()
+            time_next = time.clock()
 
-        # Add all phones and tanks to the state
-        i = 0
-        for tank in connected_tanks.iterkeys():
-            print tank
+            # Add all phones and tanks to the state
+            i = 0
+            for tank in connected_tanks.iterkeys():
+                print tank
+                state_next = state_prev.next(\
+                        PlayerJoinEvent(Uuid.generate(),
+                            Player(Uuid.generate(),
+                                   btmac = connected_phones[i],
+                                   tank = Tank(Uuid.generate(),
+                                               btmac = tank))),
+                                   time_prev, time_next - time_prev)
+                i += 1
+
+            if len(connected_tanks) != 0:
+                state_prev = state_next
+                time_prev = time_next
+            # Work around for if 2 phones are connected but no tanks are.
+            # This allows all bytes sent to the tank to be displayed on
+            # another device
+            elif (len(connected_phones) == 2):
+                state_next = state_prev.next(\
+                        PlayerJoinEvent(Uuid.generate(),
+                            Player(Uuid.generate(),
+                                   btmac = connected_phones[0],
+                                   tank = Tank(Uuid.generate(),
+                                               btmac = connected_phones[1]))),
+                                   time_prev, time_next - time_prev)
+
+        if DISABLE_BLUETOOTH:
+            time_next = time.clock()
             state_next = state_prev.next(\
                     PlayerJoinEvent(Uuid.generate(),
                         Player(Uuid.generate(),
-                               btmac = connected_phones[i],
+                            btmac = "00:00:00:00:00:00",
                                tank = Tank(Uuid.generate(),
-                                           btmac = tank))),
-                               time_prev, time_next - time_prev)
-            i += 1
-
-        if len(connected_tanks) != 0:
-            state_prev = state_next
-            time_prev = time_next
-        # Work around for if 2 phones are connected but no tanks are.
-        # This allows all bytes sent to the tank to be displayed on
-        # another device
-        elif (len(connected_phones) == 2):
-            state_next = state_prev.next(\
-                    PlayerJoinEvent(Uuid.generate(),
-                        Player(Uuid.generate(),
-                               btmac = connected_phones[0],
-                               tank = Tank(Uuid.generate(),
-                                           btmac = connected_phones[1]))),
+                                   btmac = "00:11:00:11:00:11"))),
                                time_prev, time_next - time_prev)
 
         try:
@@ -188,7 +202,7 @@ def main():
                                  indent = 4,
                                  separators = (', ', ': '))
         #        main_unity_send_channel.send(current_json)
-#                print current_json
+                print current_json
             try:
                 s.send(current_json)
                 s.send("\x03")
