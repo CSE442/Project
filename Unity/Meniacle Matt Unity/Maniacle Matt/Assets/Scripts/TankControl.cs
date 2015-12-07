@@ -7,6 +7,7 @@ using System.Threading;
 using SimpleJSON;
 using System.IO;
 using System.Collections.Generic;
+using System;
 
 /*	
  *	Tank Controll.cs
@@ -20,109 +21,71 @@ using System.Collections.Generic;
 
 public class TankControl : MonoBehaviour
 {
-    private StructRef<State> stateRef;
-    private bool tcpThreadIsRunning;
+    private Socket activeSocket;
+    private string accumulatedMessage;
     public GameObject Tank;
     public GameObject Turret;
 
     void Start()
     {
-        tcpThreadIsRunning = true;
-        stateRef = new StructRef<State>(State.Empty());
-        Thread connectionThread = new Thread(() =>
-        {
-            IPEndPoint localEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 33333);
-            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            socket.Bind(localEndpoint);
-            socket.Listen(10);
-            Socket activeSocket = socket.Accept();
-            while (tcpThreadIsRunning)
-            {
-                String accumulatedMessage = "";
-                byte[] messageBuffer = new byte[4096];
-                int messageLength = activeSocket.Receive(messageBuffer);
-                int chopIndex = 0;
-                Debug.Assert(messageLength > 0);
-                for (int messageByteIndex = 0; messageByteIndex < messageLength; messageByteIndex ++)
-                {
-                    byte messageByte = messageBuffer[messageByteIndex];
-                    if (messageByte == 0x03)
-                    {
-                        chopIndex = messageByteIndex;
-                        String messageTail = Encoding.ASCII.GetString(messageBuffer, 0, messageByteIndex);
-                        String fullMessage = accumulatedMessage + messageTail;
-                        JSONNode messageJSON = JSONNode.Parse(fullMessage);
-                        this.stateRef.Data = State.fromJSON(messageJSON);
-                    }
-                    else if (messageByte == 0x00)
-                    {
-                        tcpThreadIsRunning = false;
-                        break;
-                    }
-                }
-                int chopLength = messageLength - chopIndex;
-                Debug.Assert(chopLength >= 0);
-                accumulatedMessage += Encoding.ASCII.GetString(messageBuffer, chopIndex, chopLength);
-            }
-        });
-        connectionThread.Start();
+        print("awaiting connection...");
+        IPEndPoint localEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 33333);
+        Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        //socket.Blocking = false; // no cock block
+        socket.Bind(localEndpoint);
+        socket.Listen(10);
+        this.activeSocket = socket.Accept();
+        this.activeSocket.Blocking = false;
+        this.accumulatedMessage = "";
     }
 
     void Update()
     {
-        print("hello there");
-        State atomicState = this.stateRef.Data;
-        Player player = atomicState.players.Values.GetEnumerator().Current;
-        Tank tank = player.tank;
-        Turret turret = tank.turret;
-
-        this.Tank.transform.position = tank.orientation.position;
-        this.Tank.transform.rotation = tank.orientation.angle;
-        this.Turret.transform.rotation = turret.relativeOrientation.angle;
-    }
-
-    void onDestroy()
-    {
-        this.tcpThreadIsRunning = false;
-    }
-}
-
-class StructRef<DataType> where DataType : struct
-{
-    private Mutex _Lock;
-    private DataType _Data;
-    public DataType Data
-    {
-        get
+        long startTime = DateTime.Now.Millisecond;
+        uint iterationsPerformed = 0;
+        while (activeSocket.Available > 0 && iterationsPerformed  < 1)
         {
-            if (this._Lock.WaitOne())
+            iterationsPerformed ++;
+            byte[] messageBuffer = new byte[4096];
+            int messageLength = activeSocket.Receive(messageBuffer);
+            int startIndex = 0;
+            int chopIndex = 0;
+            Debug.Assert(messageLength > 0);
+            for (int messageByteIndex = 0; messageByteIndex < messageLength; messageByteIndex++)
             {
-                DataType Result = this._Data;
-                this._Lock.ReleaseMutex();
-                return Result;
+                byte messageByte = messageBuffer[messageByteIndex];
+                if (messageByte == 0x03)
+                {
+                    startIndex = chopIndex;
+                    chopIndex = messageByteIndex;
+                    string messageTail = Encoding.ASCII.GetString(messageBuffer, startIndex, chopIndex - startIndex);
+                    string fullMessage = this.accumulatedMessage + messageTail;
+                    //print(this.accumulatedMessage + "\n\nyyy\n\n" + messageTail);
+                    this.accumulatedMessage = "";
+                    JSONNode messageJSON = JSONNode.Parse(fullMessage);
+                    State state = State.fromJSON(messageJSON);
+                    Player player = state.players.Values.GetEnumerator().Current;
+                    Tank tank = player.tank;
+                    Turret turret = tank.turret;
+                    this.Tank.transform.position = tank.orientation.position;
+                    this.Tank.transform.rotation = tank.orientation.angle;
+                    this.Turret.transform.rotation = turret.relativeOrientation.angle;
+                }
+                else if (messageByte == 0x00)
+                {
+                    print("message stream terminated");
+                }
             }
-            else
+            int chopLength = messageLength - chopIndex;
+            Debug.Assert(chopLength >= 0);
+            if (chopLength > 0)
             {
-                throw new Exception("Lock system fucked up");
+                accumulatedMessage += Encoding.ASCII.GetString(messageBuffer, chopIndex, chopLength);
             }
         }
-        set
-        {
-            if (this._Lock.WaitOne())
-            {
-                this._Data = value;
-                this._Lock.ReleaseMutex();
-            }
-            else
-            {
-                throw new Exception("Seriously? We couldn't lock on the mutex? WTF???");
-            }
-        }
-    }
-    public StructRef(DataType Data)
-    {
-        this._Lock = new Mutex();
-        this._Data = Data;
+        long endTime = DateTime.Now.Millisecond;
+        long elapsedTime = endTime - startTime;
+        print("milliseconds elapsed " + elapsedTime);
     }
 }
 
@@ -155,14 +118,14 @@ public struct State
 
 public struct DictionaryUtil
 {
-    public static Dictionary<Key,Value> fromJSON<Key, Value>(
-        JSONNode node, 
-        Func<string, Key> convertKey, 
+    public static Dictionary<Key, Value> fromJSON<Key, Value>(
+        JSONNode node,
+        Func<string, Key> convertKey,
         Func<JSONNode, Value> convertValue)
     {
         JSONClass objectView = node.AsObject;
         Dictionary<Key, Value> result = new Dictionary<Key, Value>(objectView.Count);
-        foreach(KeyValuePair<string, JSONNode> pair in objectView)
+        foreach (KeyValuePair<string, JSONNode> pair in objectView)
         {
             Key key = convertKey(pair.Key);
             Value value = convertValue(pair.Value);
@@ -295,7 +258,7 @@ public struct WeaponUtility
 {
     public static IWeapon fromJSON(JSONNode node)
     {
-        switch(node["variant"].Value)
+        switch (node["variant"].Value)
         {
             case "DefaultWeapon": return DefaultWeapon.fromJSON(node);
             default: throw new Exception("You fucked up");
@@ -374,383 +337,418 @@ public struct Orientation
     }
 }
 
-public struct TankData {
-	public string keyValue;
-	public string jsonString;
-	public Vector3 tankPos;
-	public Quaternion tankRot;
-	//bullets
-	public Vector3 turretPos;
-	public Quaternion turretRot;
+public struct TankData
+{
+    public string keyValue;
+    public string jsonString;
+    public Vector3 tankPos;
+    public Quaternion tankRot;
+    //bullets
+    public Vector3 turretPos;
+    public Quaternion turretRot;
 }
 
 public class TankControlOld : MonoBehaviour
 {
 
-	public GameObject Tank;
-	public GameObject Turret;
+    public GameObject Tank;
+    public GameObject Turret;
 
-	public bool locked;
+    public bool locked;
 
-	// structure 
-	private TankData player;
-	private Vector3 location;
-	private Vector4 angle;
-	public Dictionary<string, JSONNode> players;
+    // structure 
+    private TankData player;
+    private Vector3 location;
+    private Vector4 angle;
+    public Dictionary<string, JSONNode> players;
 
-	//===============tcp stuff=========
-	private Socket connection;
-	System.Threading.Thread readThread;
-	System.Threading.Thread connectThread;
-	public bool threadInit;
-	bool tcpIsPaused;
-	//bool active;
-	//=================================
+    //===============tcp stuff=========
+    private Socket connection;
+    System.Threading.Thread readThread;
+    System.Threading.Thread connectThread;
+    public bool threadInit;
+    bool tcpIsPaused;
+    //bool active;
+    //=================================
 
-	
-	//private string fileLocation = "Assets/Scripts/states.json";		//obtain file Location
 
-	private string getKey(){
-	
-		string keyValue = null;
-		foreach(string key in players.Keys){
-			player.keyValue = key.ToString();
-			keyValue = key.ToString();
-		}
+    //private string fileLocation = "Assets/Scripts/states.json";		//obtain file Location
 
-		return keyValue;
+    private string getKey()
+    {
 
-	}
+        string keyValue = null;
+        foreach (string key in players.Keys)
+        {
+            player.keyValue = key.ToString();
+            keyValue = key.ToString();
+        }
 
-	public string getCurrentState(){
-		string state = null;
-		var infile = JSONNode.Parse (player.jsonString);
+        return keyValue;
 
-		state = (infile["variant"]);
+    }
 
-		return state;
-	}
+    public string getCurrentState()
+    {
+        string state = null;
+        var infile = JSONNode.Parse(player.jsonString);
 
-	public string getStateID(){
-		string uuid = null;
-		var infile = JSONNode.Parse (player.jsonString);
+        state = (infile["variant"]);
 
-		uuid = (infile["uuid"]);
+        return state;
+    }
 
-		return uuid;
-	}
+    public string getStateID()
+    {
+        string uuid = null;
+        var infile = JSONNode.Parse(player.jsonString);
 
-	/*=================== PLAYER ======================
+        uuid = (infile["uuid"]);
+
+        return uuid;
+    }
+
+    /*=================== PLAYER ======================
 	 * obtains player information
 	 * These functions require keyValue to be passed in, 
 	 * you can call getKey() to obtain it
 	 */
-	public string getPlayerID(string keyValue){
-		string uuid = null;
-		var infile = JSONNode.Parse (player.jsonString);
+    public string getPlayerID(string keyValue)
+    {
+        string uuid = null;
+        var infile = JSONNode.Parse(player.jsonString);
 
-		uuid = (infile["players"][keyValue]["uuid"].ToString());
-		
-		return uuid;
-	}
-	/*=================== TANK ======================
+        uuid = (infile["players"][keyValue]["uuid"].ToString());
+
+        return uuid;
+    }
+    /*=================== TANK ======================
 	 * Obtains tank information 
 	 * These functions require keyValue to be passed in, 
 	 * you can call getKey() to obtain it
 	 */
-	public string getTankID(string keyValue){
-		string uuid = null;
-		var infile = JSONNode.Parse (player.jsonString);
+    public string getTankID(string keyValue)
+    {
+        string uuid = null;
+        var infile = JSONNode.Parse(player.jsonString);
 
-		foreach (string key in players.Keys) {
-			uuid = (infile["players"][key]["tank"]["uuid"].ToString());
-		}
+        foreach (string key in players.Keys)
+        {
+            uuid = (infile["players"][key]["tank"]["uuid"].ToString());
+        }
 
-		return uuid;
-	}
+        return uuid;
+    }
 
-	public int getTankHealth (string keyValue){
-		int health = 0;
-		var infile = JSONNode.Parse (player.jsonString);
-		/*
+    public int getTankHealth(string keyValue)
+    {
+        int health = 0;
+        var infile = JSONNode.Parse(player.jsonString);
+        /*
 		foreach (string key in players.Keys) {
 			health = (infile["players"][key]["tank"]["health"].AsInt);
 		}
 		*/
-		health = infile ["players"] [keyValue] ["tank"] ["health"].AsInt;
-		return health;
-	}
+        health = infile["players"][keyValue]["tank"]["health"].AsInt;
+        return health;
+    }
 
-	/*=================== TURRET ======================
+    /*=================== TURRET ======================
 	 * obtains turret uuid
 	 * These functions require keyValue to be passed in, 
 	 * you can call getKey() to obtain it
 	 */
-	public string getTurretID(string keyValue){
-		string uuid = null;
-		var infile = JSONNode.Parse (player.jsonString);
+    public string getTurretID(string keyValue)
+    {
+        string uuid = null;
+        var infile = JSONNode.Parse(player.jsonString);
 
-		uuid = (infile["players"][keyValue]["tank"]["turret"]["uuid"].ToString());
-		
-		return uuid;
-	}
-	
-	public Quaternion getTurretAngle(){
-		
-		float W = 0, X = 0, Y = 0, Z = 0;
-		Quaternion pos;
-		
-		var infile = JSONNode.Parse (player.jsonString);
-		
-		W = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["a"].AsFloat);
-		X = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["i"].AsFloat);
-		Y = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["j"].AsFloat);
-		
-		Z = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["k"].AsFloat);
-		
-		pos = new Quaternion (W, X, Y, Z);
-		
-		// Pos is a Quaternion type
-		return pos;
-	}
+        uuid = (infile["players"][keyValue]["tank"]["turret"]["uuid"].ToString());
 
-	/*=================== WEAPON ======================
+        return uuid;
+    }
+
+    public Quaternion getTurretAngle()
+    {
+
+        float W = 0, X = 0, Y = 0, Z = 0;
+        Quaternion pos;
+
+        var infile = JSONNode.Parse(player.jsonString);
+
+        W = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["a"].AsFloat);
+        X = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["i"].AsFloat);
+        Y = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["j"].AsFloat);
+
+        Z = (infile["players"][player.keyValue]["tank"]["turret"]["orientation"]["angular"]["k"].AsFloat);
+
+        pos = new Quaternion(W, X, Y, Z);
+
+        // Pos is a Quaternion type
+        return pos;
+    }
+
+    /*=================== WEAPON ======================
 	 * These functions require keyValue to be passed in, 
 	 * you can call getKey() to obtain it
 	 */
-	public string getWeaponID(string keyValue){
-		string uuid = null;
-		var infile = JSONNode.Parse (player.jsonString);
+    public string getWeaponID(string keyValue)
+    {
+        string uuid = null;
+        var infile = JSONNode.Parse(player.jsonString);
 
-		uuid = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["uuid"].ToString());
+        uuid = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["uuid"].ToString());
 
-		return uuid;
-	}
+        return uuid;
+    }
 
-	// The damage the current turret weapon does. 
-	public int getWeaponDamage(string keyValue){
-		int damage = 0;
-		var infile = JSONNode.Parse (player.jsonString);
+    // The damage the current turret weapon does. 
+    public int getWeaponDamage(string keyValue)
+    {
+        int damage = 0;
+        var infile = JSONNode.Parse(player.jsonString);
 
-		damage = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["damage"].AsInt);
-		
-
-		return damage;
-	}
-
-	// How much ammo the turret has left
-	public int getWeaponAmmo(string keyValue){
-		int ammo = 0;
-		var infile = JSONNode.Parse (player.jsonString);
-
-		ammo = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["ammo"].AsInt);
-
-		return ammo;
-	}
-
-	public string getTurretWeapon(string keyValue){
-		string weapon = null;
-		var infile = JSONNode.Parse (player.jsonString);
-
-		weapon = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["variant"]);
+        damage = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["damage"].AsInt);
 
 
-		return weapon;
-	}
+        return damage;
+    }
 
-	/*
+    // How much ammo the turret has left
+    public int getWeaponAmmo(string keyValue)
+    {
+        int ammo = 0;
+        var infile = JSONNode.Parse(player.jsonString);
+
+        ammo = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["ammo"].AsInt);
+
+        return ammo;
+    }
+
+    public string getTurretWeapon(string keyValue)
+    {
+        string weapon = null;
+        var infile = JSONNode.Parse(player.jsonString);
+
+        weapon = (infile["players"][keyValue]["tank"]["turret"]["weapon"]["variant"]);
+
+
+        return weapon;
+    }
+
+    /*
 	 * getTankPosition 
 	 */
- 	public Vector3 getTankPosition(){
+    public Vector3 getTankPosition()
+    {
 
-		float X = 0.0f, Y = 0.0f, Z = 0.0f;
-		Vector3 pos;
+        float X = 0.0f, Y = 0.0f, Z = 0.0f;
+        Vector3 pos;
 
-		var infile = JSON.Parse (player.jsonString);
+        var infile = JSON.Parse(player.jsonString);
 
-		// Extract the (X,Y,Z) as a float and make it a new vector 3. 
-		X = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][0].AsFloat);
-		Y = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][1].AsFloat);
-		Z = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][2].AsFloat);
+        // Extract the (X,Y,Z) as a float and make it a new vector 3. 
+        X = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][0].AsFloat);
+        Y = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][1].AsFloat);
+        Z = (infile["players"][player.keyValue]["tank"]["orientation"]["linear"][2].AsFloat);
 
-		pos = new Vector3 (X, Y, Z);
-		return pos; 
-	}
+        pos = new Vector3(X, Y, Z);
+        return pos;
+    }
 
-	// Orientation data for tank
-	public Quaternion getTankAngle(){
-		
-		float W = 0, X = 0, Y = 0, Z = 0;
-		Quaternion pos;
+    // Orientation data for tank
+    public Quaternion getTankAngle()
+    {
 
-		var infile = JSONNode.Parse (player.jsonString);
+        float W = 0, X = 0, Y = 0, Z = 0;
+        Quaternion pos;
 
-		// Extract the (W,X,Y,Z) as a vector 4. 
-		W = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["a"].AsFloat);
-		X = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["i"].AsFloat);
-		Y = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["j"].AsFloat);
-		Z = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["k"].AsFloat);
+        var infile = JSONNode.Parse(player.jsonString);
 
-		pos = new Quaternion (W, X, Y, Z);
+        // Extract the (W,X,Y,Z) as a vector 4. 
+        W = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["a"].AsFloat);
+        X = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["i"].AsFloat);
+        Y = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["j"].AsFloat);
+        Z = (infile["players"][player.keyValue]["tank"]["orientation"]["angle"]["k"].AsFloat);
 
-		return pos;
-	}
+        pos = new Quaternion(W, X, Y, Z);
+
+        return pos;
+    }
 
 
-	private void moveTank(){
+    private void moveTank()
+    {
 
-		Tank.transform.position = getTankPosition ();
-		//print(Tank.transform.position);
-		Tank.transform.rotation = getTankAngle ();
-		//print (Tank.transform.rotation);
+        Tank.transform.position = getTankPosition();
+        //print(Tank.transform.position);
+        Tank.transform.rotation = getTankAngle();
+        //print (Tank.transform.rotation);
 
-		return;
-	}
+        return;
+    }
 
-	private void handleTurret(){
-		Turret.transform.rotation = getTurretAngle ();
-		//print (Turret.transform.rotation);
-	}
+    private void handleTurret()
+    {
+        Turret.transform.rotation = getTurretAngle();
+        //print (Turret.transform.rotation);
+    }
 
-	private void handleShoot(/*bullet list?*/)
-	{
+    private void handleShoot(/*bullet list?*/)
+    {
 
-	}
+    }
 
-	/*
+    /*
 	 * This function should hold all tank updating code.
 	 */
-	private void updateTanks(){
+    private void updateTanks()
+    {
 
-		//getKey ();
-		//print (player.keyValue);
-		moveTank();
+        //getKey ();
+        //print (player.keyValue);
+        moveTank();
 
-		return;
-	}
+        return;
+    }
 
-	//*************
-	// On startup
-	//*************
-	void Start () {
-		player = new TankData();
-		threadInit = false;	//this flag is for a connected hanger program
-		tcpIsPaused = false;
-		locked = false;
+    //*************
+    // On startup
+    //*************
+    void Start()
+    {
+        player = new TankData();
+        threadInit = false; //this flag is for a connected hanger program
+        tcpIsPaused = false;
+        locked = false;
 
-		IPEndPoint localEndpoint = new IPEndPoint (IPAddress.Parse ("127.0.0.1"), 33333);
-		try{
-			Socket listener = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-			listener.Bind (localEndpoint);
-			listener.Listen (10);
-			connection = listener;
-			//This thread waits to open a connection to Hanger. Hanger sends the connection request
-			connectThread = new System.Threading.Thread(socketAccept);
-			connectThread.Start();
-			//This thread reads furthur input from the hanger
-			readThread = new System.Threading.Thread(readData);
-			readThread.Start();
-		}catch(Exception e){
-			print ("Bad things.");
-			Console.WriteLine(e.ToString());
-			System.Threading.Thread.Sleep(3000);
-		}
-	}
+        IPEndPoint localEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 33333);
+        try
+        {
+            Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            listener.Bind(localEndpoint);
+            listener.Listen(10);
+            connection = listener;
+            //This thread waits to open a connection to Hanger. Hanger sends the connection request
+            connectThread = new System.Threading.Thread(socketAccept);
+            connectThread.Start();
+            //This thread reads furthur input from the hanger
+            readThread = new System.Threading.Thread(readData);
+            readThread.Start();
+        }
+        catch (Exception e)
+        {
+            print("Bad things.");
+            Console.WriteLine(e.ToString());
+            System.Threading.Thread.Sleep(3000);
+        }
+    }
 
-	void readData(){
-		while (!threadInit) {
-			//wait for Hanger connection
-		}
-		//threadInit = false;
-		connectThread.Abort ();
+    void readData()
+    {
+        while (!threadInit)
+        {
+            //wait for Hanger connection
+        }
+        //threadInit = false;
+        connectThread.Abort();
         String accumulatedMessage = "";
         String runningMessages = "";
         char[] delimiter = { '\x3' };
         String[] jsons;
-        
-		while (true) {
-			print("While loop");
-			byte[] messageBuffer = new byte[1024];
+
+        while (true)
+        {
+            print("While loop");
+            byte[] messageBuffer = new byte[1024];
             int messageLength = connection.Receive(messageBuffer);
-            if (messageLength > 0) {
-                runningMessages += Encoding.ASCII.GetString(messageBuffer, 0 , messageLength);
+            if (messageLength > 0)
+            {
+                runningMessages += Encoding.ASCII.GetString(messageBuffer, 0, messageLength);
                 print(runningMessages);
                 jsons = runningMessages.Split(delimiter, 2);
-                if (jsons.Length > 1) {
+                if (jsons.Length > 1)
+                {
                     accumulatedMessage = jsons[0];
                     runningMessages = jsons[1];
                 }
             }
-/*			String accumulatedMessage = "";
-			byte[] messageBuffer      = new byte[1];
-			while (true) {
-				int messageLength = connection.Receive(messageBuffer);
-				if (messageLength > 0) {
-					if (messageBuffer[0] == 0x03) {
-						break;
-					}
-					else {
-						accumulatedMessage += Encoding.ASCII.GetString(messageBuffer, 0, messageLength);
-					}
-				}
-			}
-*/
-			// byte[] msg = new byte[1024];
-			// int length = connection.Receive(msg);
+            /*			String accumulatedMessage = "";
+                        byte[] messageBuffer      = new byte[1];
+                        while (true) {
+                            int messageLength = connection.Receive(messageBuffer);
+                            if (messageLength > 0) {
+                                if (messageBuffer[0] == 0x03) {
+                                    break;
+                                }
+                                else {
+                                    accumulatedMessage += Encoding.ASCII.GetString(messageBuffer, 0, messageLength);
+                                }
+                            }
+                        }
+            */
+            // byte[] msg = new byte[1024];
+            // int length = connection.Receive(msg);
 
-			//read input, then sends data to working method
-			//doJson(data);
-			if (!tcpIsPaused && accumulatedMessage.Length > 0){
-				//if(locked == false){
-					/*!!!*!!!!*!!!!*///player.jsonString = Encoding.ASCII.GetString(msg,0,length);
-					if(runningMessages.Length < 3 && runningMessages.Contains("\x4"))
-						break;
-				    player.jsonString = accumulatedMessage;
-					//print(player.jsonString);
-					var infile = JSONNode.Parse (player.jsonString);
+            //read input, then sends data to working method
+            //doJson(data);
+            if (!tcpIsPaused && accumulatedMessage.Length > 0)
+            {
+                //if(locked == false){
+                /*!!!*!!!!*!!!!*///player.jsonString = Encoding.ASCII.GetString(msg,0,length);
+                if (runningMessages.Length < 3 && runningMessages.Contains("\x4"))
+                    break;
+                player.jsonString = accumulatedMessage;
+                //print(player.jsonString);
+                var infile = JSONNode.Parse(player.jsonString);
 
-					players = new Dictionary<string, JSONNode>();
+                players = new Dictionary<string, JSONNode>();
 
-					foreach (KeyValuePair<String, JSONNode> pair in infile["players"].AsObject) {
-						players.Add (pair.Key, pair.Value);
+                foreach (KeyValuePair<String, JSONNode> pair in infile["players"].AsObject)
+                {
+                    players.Add(pair.Key, pair.Value);
 
-					//}
+                    //}
 
-					//threadInit = true;
-					locked = true;
-				}
-			}
-			//print(data);/
+                    //threadInit = true;
+                    locked = true;
+                }
+            }
+            //print(data);/
             //print(runningMessages);
-			if(runningMessages.Length < 3 && runningMessages.Contains("\x4")) {
-				print("Connection Closed");
-				break;		//hanger closed. Nothing more to do here
-			}
-			//************
-			// on update
-			//************
-		}
-		print ("Reading thread returned");
-	}
+            if (runningMessages.Length < 3 && runningMessages.Contains("\x4"))
+            {
+                print("Connection Closed");
+                break;      //hanger closed. Nothing more to do here
+            }
+            //************
+            // on update
+            //************
+        }
+        print("Reading thread returned");
+    }
 
-	void socketAccept(){
-		connection = connection.Accept();	//accept connection from hanger, then return
-		threadInit = true;
-		print("Connected");
-		print ("Startup thread returned");
-	}
+    void socketAccept()
+    {
+        connection = connection.Accept();   //accept connection from hanger, then return
+        threadInit = true;
+        print("Connected");
+        print("Startup thread returned");
+    }
 
-	void Update(){
-		//Tank.transform()
+    void Update()
+    {
+        //Tank.transform()
+        print("what the fuck");
+        tcpIsPaused = true;
 
-		tcpIsPaused = true;
-
-		if (locked) {
-			getKey();
-			moveTank();
-			handleTurret();
-			//print("so much poop");
-		}
-		tcpIsPaused = false;
-	}
+        if (locked)
+        {
+            getKey();
+            moveTank();
+            handleTurret();
+            //print("so much poop");
+        }
+        tcpIsPaused = false;
+    }
 }
