@@ -84,13 +84,15 @@ public class TankControl : MonoBehaviour
                         State state = State.fromJSON(messageJSON);
                         print(fullMessage);
                         print(state.players.Count);
-                        Player player = state.players.Values.GetEnumerator().Current;
-                        Tank tank = player.tank;
-                        Turret turret = tank.turret;
-                        this.Tank.transform.position = tank.orientation.position;
-                        this.Tank.transform.rotation = tank.orientation.angle;
-                        this.Turret.transform.rotation = turret.relativeOrientation.angle;
-                        print("state uuid = " + state.uuid);
+                        foreach(Player player in state.players.Values)
+                        {
+                            Tank tank = player.tank;
+                            Turret turret = tank.turret;
+                            this.Tank.transform.position = tank.orientation.position;
+                            this.Tank.transform.rotation = tank.orientation.angle;
+                            this.Turret.transform.rotation = turret.relativeOrientation.angle;
+                        }
+                        print("state uuid = " + state.uuid.value);
                         //print (tank.orientation.position);
                         //print (tank.orientation.angle);
                     }
@@ -179,7 +181,6 @@ public struct Player
     public readonly Tank tank;
     public static Player fromJSON(JSONNode node)
     {
-		Console.WriteLine ("reading player " + node);
         UUID uuid = UUID.fromString(node["uuid"]);
         Tank tank = Tank.fromJSON(node["tank"]);
         return new Player(uuid, tank);
@@ -198,7 +199,6 @@ public struct Tank
     public readonly Orientation orientation;
     public static Tank fromJSON(JSONNode node)
     {
-		Console.WriteLine ("reading tank " + node);
         UUID uuid = UUID.fromString(node["uuid"]);
         Turret turret = Turret.fromJSON(node["turret"]);
         Orientation orientation = Orientation.fromJSON(node["orientation"]);
@@ -341,9 +341,10 @@ public struct Vector3Utility
 {
     public static Vector3 fromJSON(JSONNode node)
     {
-        float x = node[0].AsFloat;
-        float y = node[1].AsFloat;
-        float z = node[2].AsFloat;
+        JSONArray array = node.AsArray;
+        float x = array[0].AsFloat * 25;
+        float y = array[1].AsFloat * 25;
+        float z = array[2].AsFloat * 25;
         return new Vector3(x, y, z);
     }
 }

@@ -29,7 +29,7 @@ def main():
     main_unity_send_channel,      unity_receive_channel          = Channel()
    ######## tracking_channel_send, tracking_channel_receive              = Channel()
 
-    DISABLE_BLUETOOTH = True
+    DISABLE_BLUETOOTH = False
 
     # Create the bluetooth manager class
     bluetooth_manager = BluetoothManager()

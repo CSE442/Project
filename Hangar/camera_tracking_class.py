@@ -719,7 +719,7 @@ class camera_thread(threading.Thread):#subclass of thread
 		        deltaY=averageGreenY-averageRedY
 		        deltaX=averageGreenX-averageRedX
 		        if (True):
-		            angleInDegrees = math.atan2(deltaY,deltaX) +math.pi/2
+		            angleInDegrees = -math.atan2(deltaY,deltaX)
 		        self.colorDetectionList['Red To Green']=angleInDegrees
 
 		    outputImg = emptyImg

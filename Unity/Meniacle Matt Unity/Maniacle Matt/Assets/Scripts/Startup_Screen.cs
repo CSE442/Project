@@ -34,5 +34,7 @@ public class Startup_Screen : MonoBehaviour {
 	}
 	void OnDisable(){
 		text.SetActive (false);
-	}
+        tank.transform.GetChild(1).transform.GetChild(1).GetComponent<ParticleSystem>().Clear();
+        tank.transform.GetChild(1).transform.GetChild(2).GetComponent<ParticleSystem>().Clear();
+    }
 }
